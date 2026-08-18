@@ -1,0 +1,12 @@
+# PlatformIO — build, toolchain e libs baixadas (centenas de MB)
+.pio/
+
+# VS Code — mantém só a recomendação de extensões
+.vscode/*
+!.vscode/extensions.json
+
+# Credenciais de Wi-Fi / broker (Fase 4 em diante)
+include/secrets.h
+
+# macOS
+.DS_Store
