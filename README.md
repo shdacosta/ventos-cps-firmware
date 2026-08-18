@@ -45,6 +45,18 @@ make flash PORT=/dev/cu.usbserial-0001
 
 ---
 
+## Credenciais de Wi-Fi
+
+O build **falha** sem isso — `secrets.h` não é opcional, o código faz `#include "secrets.h"`.
+
+```bash
+cp include/secrets.h.example include/secrets.h
+```
+
+Edite `include/secrets.h` com o SSID e a senha da sua rede. Esse arquivo está no `.gitignore` e nunca é commitado — só o `.example` (sem credenciais reais) fica versionado.
+
+---
+
 ## Setup inicial
 
 ```bash
@@ -79,11 +91,17 @@ Porta esperada no macOS: `/dev/cu.usbserial-0001`. Conferir com `make ports`.
 
 ```
 ventos-cps-firmware/
-├── CLAUDE.md          convenções e forma de trabalho
-├── Makefile           atalhos do PlatformIO
-├── platformio.ini     configuração do build
-├── src/main.cpp       firmware
-└── specs/             hardware e requisitos de firmware
+├── CLAUDE.md              convenções e forma de trabalho
+├── Makefile               atalhos do PlatformIO
+├── platformio.ini         configuração do build
+├── include/
+│   ├── secrets.h.example  template de credenciais (versionado)
+│   ├── secrets.h          credenciais reais (git-ignored, você cria)
+│   └── wifi_gerenciado.h  interface do módulo de Wi-Fi
+├── src/
+│   ├── main.cpp           orquestração: setup(), loop()
+│   └── wifi_gerenciado.cpp  conexão, reconexão, NTP
+└── specs/                 hardware, requisitos de firmware, pendências
 ```
 
 ---
@@ -104,8 +122,10 @@ Detalhes, pinos a evitar e esquema de ligação: [`specs/hardware.md`](specs/har
 
 ## Status
 
-**Fase 1 concluída** — ambiente, compilação, gravação e monitor validados. O que roda hoje é um blink com contador no serial.
+**Fase 1 concluída** — ambiente, compilação, gravação e monitor validados.
 
-**Fase 2 bloqueada** — o anemômetro não pode ser ligado até chegar o conector dupont, e os pulsos por volta continuam desconhecidos.
+**Fase 4 em andamento** — conexão Wi-Fi não-bloqueante, reconexão com backoff exponencial e sincronização de hora via NTP implementadas (`src/wifi_gerenciado.cpp`). Adiantada fora de ordem porque não depende do anemômetro.
+
+**Fase 2 bloqueada** — o anemômetro não pode ser ligado até chegar o conector dupont. Checklist do que confirmar assim que chegar: [`specs/pendencias-hardware.md`](specs/pendencias-hardware.md).
 
 Roadmap completo: [`specs/README.md`](specs/README.md#roadmap).

@@ -80,20 +80,22 @@ O programa do fabricante é para Arduino UNO e tem defeitos que não devem ser p
 
 ## 3. Wi-Fi
 
+**Status: implementado** (`src/wifi_gerenciado.{h,cpp}`, Fase 4).
+
 Requisitos:
 
-1. Conectar na rede
-2. Reportar conexão e IP no Serial Monitor
-3. **Reconectar automaticamente** em queda
-4. Nunca bloquear a medição — a contagem de pulsos não pode parar durante uma tentativa de reconexão
+1. Conectar na rede ✅
+2. Reportar conexão e IP no Serial Monitor ✅
+3. **Reconectar automaticamente** em queda ✅ — backoff exponencial, teto de 30 s
+4. Nunca bloquear a medição — a contagem de pulsos não pode parar durante uma tentativa de reconexão ✅ — máquina de estados não-bloqueante, `atualizarWifi()` chamada a cada `loop()` sem nenhum `delay()`
 
-Boas práticas a aplicar:
+Boas práticas aplicadas:
 
-- Reconexão com **backoff exponencial** e teto — não tentar em loop apertado
-- `WiFi.setSleep(false)` se a latência importar; manter sleep se o consumo importar
-- Credenciais fora do código versionado (`include/secrets.h`, já no `.gitignore`)
-- **NTP** para timestamp confiável — decidir se o carimbo de hora é do ESP32 ou do servidor
-- Watchdog: reset automático se o loop principal travar
+- Reconexão com **backoff exponencial** e teto — `WiFi.reconnect()`, sem loop apertado
+- `WiFi.setSleep(false)` — estação ligada na tomada, latência importa mais que consumo
+- Credenciais fora do código versionado (`include/secrets.h`, no `.gitignore`; `secrets.h.example` versionado como template)
+- **NTP para timestamp confiável, resolvido**: o carimbo é do **ESP32**, não do servidor — decisão já tomada no contrato do backend (`measured_at`, ver `backend/README.md` no repo do servidor), por causa do buffer offline da Fase 5. `configTime()` dispara a sincronização assim que conecta; `getLocalTime()` com timeout curto (100 ms) evita bloquear o `loop()` enquanto ainda não sincronizou
+- Watchdog: reset automático se o loop principal travar — **ainda não implementado**, fica para a Fase 5 junto do buffer offline
 
 ---
 

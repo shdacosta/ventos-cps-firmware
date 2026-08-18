@@ -12,6 +12,7 @@ Comandos de build e gravação: [`../README.md`](../README.md).
 |---|---|
 | [hardware.md](hardware.md) | Anemômetro, ESP32, ligação elétrica, calibração |
 | [firmware.md](firmware.md) | Medição, Wi-Fi, telemetria, resiliência |
+| [pendencias-hardware.md](pendencias-hardware.md) | Checklist do que confirmar assim que o conector dupont chegar |
 
 ---
 
@@ -55,7 +56,7 @@ O que o firmware precisa respeitar desse contrato está resumido em
 | 1 | Ambiente: PlatformIO + primeiro upload | ✅ concluída |
 | 2 | Sensor na bancada — pulsos, pulsos/volta, debounce | 🔴 bloqueada — falta conector |
 | 3 | Medição — período, instantânea, média, rajada | ⚪ |
-| 4 | Wi-Fi robusto — reconexão, NTP | ⚪ |
+| 4 | Wi-Fi robusto — reconexão, NTP | 🔵 em andamento |
 | 5 | Telemetria — HTTP em lote, buffer offline, watchdog, OTA | ⚪ |
 | 6 | Hardware definitivo — PC817, caixa hermética, instalação | ⚪ |
 
@@ -67,13 +68,9 @@ Cada fase termina com algo funcionando e verificável.
 
 ## Pendência que bloqueia a Fase 2
 
-**Pulsos por volta é desconhecido.** É a última incógnita técnica do firmware e afeta
-toda leitura por um fator de 2. O fabricante não respondeu.
-
-A medição é direta: girar o rotor 10 voltas à mão e ler o contador no Serial Monitor.
-10 pulsos → 1 por volta; 20 → 2 por volta. Exige o conector dupont, que ainda não chegou.
-
-Detalhes em [hardware.md](hardware.md#pulsos-por-volta--pendência-aberta).
+O conector dupont ainda não chegou. Checklist completo do que confirmar assim
+que ele chegar — pulsos por volta, debounce, cabo — em
+[pendencias-hardware.md](pendencias-hardware.md).
 
 ---
 

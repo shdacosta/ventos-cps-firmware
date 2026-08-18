@@ -1,20 +1,37 @@
 // ============================================================
-// Ventos Campinas - FASE 1
-// Objetivo: validar toolchain, gravacao e monitor serial.
-// Nenhum hardware externo. Sensor entra na Fase 2.
+// Ventos Campinas - FASE 4
+// Objetivo: conectar no Wi-Fi, reconectar sozinho se cair, e manter o
+// relogio sincronizado via NTP -- tudo sem bloquear o loop().
+// Anemometro ainda nao entra: Fase 2 bloqueada pelo conector dupont.
 // ============================================================
 
 #include <Arduino.h>
 
+#include "wifi_gerenciado.h"
+
 // LED onboard da DevKit. GPIO2 e "strapping pin" (participa da
 // decisao de boot), mas isso so vale enquanto ele e ENTRADA no
 // reset. Como SAIDA, depois do boot, e seguro.
-// Por isso o LED pode usar GPIO2 e o sensor nao.
-constexpr uint8_t  LED_PIN     = 2;
-constexpr uint32_t INTERVALO_MS = 2000;
+constexpr uint8_t  LED_PIN             = 2;
+constexpr uint32_t INTERVALO_STATUS_MS = 5000;
 
-uint32_t contador    = 0;
-uint32_t ultimoPisca = 0;
+uint32_t ultimoStatus = 0;
+
+void imprimirStatus()
+{
+    Serial.printf("[status] uptime=%lus heap=%lu",
+                  (unsigned long) (millis() / 1000),
+                  (unsigned long) ESP.getFreeHeap());
+
+    if (wifiConectado()) {
+        Serial.printf(" wifi=conectado rssi=%ddBm ip=%s hora=%s",
+                      wifiRssiDbm(), wifiIp().c_str(), horaAtualFormatada().c_str());
+    } else {
+        Serial.print(" wifi=desconectado");
+    }
+
+    Serial.println();
+}
 
 void setup()
 {
@@ -25,33 +42,24 @@ void setup()
     pinMode(LED_PIN, OUTPUT);
 
     Serial.println();
-    Serial.println("=== Ventos Campinas | Fase 1 ===");
-    Serial.printf("Chip .....: %s\n", ESP.getChipModel());
-    Serial.printf("Nucleos ..: %d\n", ESP.getChipCores());
-    Serial.printf("CPU ......: %lu MHz\n", (unsigned long) ESP.getCpuFreqMHz());
-    Serial.printf("Flash ....: %lu MB\n", (unsigned long) (ESP.getFlashChipSize() / (1024UL * 1024UL)));
-    Serial.println("Setup concluido.");
-    Serial.println();
+    Serial.println("=== Ventos Campinas | Fase 4 ===");
+
+    iniciarWifi();
 }
 
 void loop()
 {
+    atualizarWifi();
+
     const uint32_t agora = millis();
 
     // Subtracao antes da comparacao: imune ao estouro do millis()
-    // aos 49 dias. O codigo do fabricante fazia
-    // "millis() < inicio + periodo", que quebra no estouro.
-    if (agora - ultimoPisca < INTERVALO_MS) {
+    // aos 49 dias.
+    if (agora - ultimoStatus < INTERVALO_STATUS_MS) {
         return;
     }
+    ultimoStatus = agora;
 
-    ultimoPisca = agora;
-    contador++;
-
-    digitalWrite(LED_PIN, contador % 2);
-
-    Serial.printf("[%4lu] uptime=%lus  heap_livre=%lu bytes\n",
-                  (unsigned long) contador,
-                  (unsigned long) (agora / 1000),
-                  (unsigned long) ESP.getFreeHeap());
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+    imprimirStatus();
 }
