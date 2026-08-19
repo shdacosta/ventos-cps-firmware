@@ -3,6 +3,9 @@
 // Objetivo: conectar no Wi-Fi, reconectar sozinho se cair, manter o
 // relogio sincronizado via NTP, e fechar uma janela de medicao a
 // cada 10s -- tudo sem bloquear o loop().
+// Fase 5 acrescenta o envio de telemetria: cada amostra de 10s vai
+// para o buffer offline, e a cada 60s um lote e enviado ao backend
+// via HTTP, com watchdog protegendo contra travamento do loop().
 // Verificacao com sensor real ainda pendente: Fase 2 bloqueada pelo
 // conector dupont (specs/pendencias-hardware.md). Ate la, o GPIO 25
 // fica em pull-up estavel e a janela chega sempre com contagem=0.
@@ -11,7 +14,9 @@
 #include <Arduino.h>
 
 #include "anemometro.h"
+#include "envio.h"
 #include "medicao.h"
+#include "watchdog.h"
 #include "wifi_gerenciado.h"
 
 // LED onboard da DevKit. GPIO2 e "strapping pin" (participa da
@@ -91,10 +96,12 @@ void setup()
 
     iniciarWifi();
     iniciarAnemometro();
+    iniciarWatchdog();
 }
 
 void loop()
 {
+    alimentarWatchdog();
     atualizarWifi();
 
     const uint32_t agora = millis();
@@ -121,6 +128,18 @@ void loop()
             Serial.printf("[medicao] descartados_por_buffer=%lu\n",
                           (unsigned long) janela.descartadosPorBuffer);
         }
+
+        registrarAmostra(amostra);
+    }
+
+    // Envio de telemetria: esvazia o buffer a cada 60s (6 amostras de
+    // 10s por lote, na cadencia que o backend espera). Checado antes
+    // do return do status abaixo -- e um timer independente, igual ao
+    // de medicao acima.
+    static uint32_t ultimoEnvio = 0;
+    if (agora - ultimoEnvio >= 60000) {
+        ultimoEnvio = agora;
+        tentarEnviarLotes();
     }
 
     // Subtracao antes da comparacao: imune ao estouro do millis()
