@@ -103,6 +103,16 @@ void setup()
 
     ArduinoOTA.setHostname("ventos-cps-anemometro");
     ArduinoOTA.setPassword(OTA_SENHA);
+    // ArduinoOTA.handle() bloqueia durante toda a transferencia e nao
+    // alimenta o watchdog sozinho -- num link fraco (RSSI ate -84dBm
+    // nesta estacao), um firmware de ~1MB pode facilmente passar dos
+    // 30s do timeout do watchdog e ser reiniciado no meio da gravacao,
+    // perdendo o buffer de telemetria em RAM. onProgress() roda a cada
+    // chunk recebido, entao uma transferencia lenta mas progredindo
+    // nunca dispara o timeout.
+    ArduinoOTA.onProgress([](unsigned int, unsigned int) {
+        alimentarWatchdog();
+    });
     ArduinoOTA.begin();
     Serial.println("[ota] pronto para atualizacao via rede");
 }
