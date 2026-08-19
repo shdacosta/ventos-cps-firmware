@@ -1,6 +1,7 @@
 #include "anemometro.h"
 
 #include <Arduino.h>
+#include <cstring>
 
 namespace {
 
@@ -17,6 +18,12 @@ volatile uint32_t contagemTotal      = 0;
 volatile uint32_t ultimoPulsoAceito  = 0;
 volatile uint32_t penultimoPulsoAceito = 0;
 volatile bool      houvePulso        = false;
+
+// Snapshot nao-volatile do buffer, copiado atomicamente dentro de
+// lerEZerarJanela(). Evita race: ISR nao escreve aqui, so em bufferTimestamps.
+// Sem isso, caller (Task 8, calcularAmostra) poderia ler o array enquanto
+// ISR escreve em bufferTimestamps logo apos a seção crítica terminar.
+static uint32_t timestampsSnapshot[CAPACIDADE_BUFFER];
 
 void IRAM_ATTR isrPulso()
 {
@@ -82,15 +89,21 @@ JanelaDePulsos lerEZerarJanela()
     janela.totalTimestamps = totalTimestamps;
     janela.descartadosPorBuffer = descartadosBuffer;
 
+    // Copiar timestamps ANTES de zerar, ainda dentro da seção crítica.
+    // Isso evita race: memcpy cria snapshot atomicamente, ISR nao pode
+    // escrever em timestampsSnapshot enquanto estamos aqui.
+    memcpy(timestampsSnapshot, const_cast<const uint32_t*>(bufferTimestamps),
+           janela.totalTimestamps * sizeof(uint32_t));
+
     contagemTotal = 0;
     totalTimestamps = 0;
     descartadosBuffer = 0;
 
     portEXIT_CRITICAL(&mux);
 
-    // timestamps aponta pro buffer estatico -- valido ate a proxima
-    // chamada desta funcao, que so acontece 10s depois.
-    janela.timestamps = const_cast<const uint32_t*>(bufferTimestamps);
+    // timestamps aponta pro snapshot nao-volatile, que nao sera escrito
+    // novamente. Snapshot e imutavel apos a seção crítica acima.
+    janela.timestamps = timestampsSnapshot;
 
     return janela;
 }
