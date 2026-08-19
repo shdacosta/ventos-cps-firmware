@@ -114,6 +114,13 @@ void loop()
 
         Serial.printf("[medicao] agora=%.2f avg=%.2f gust=%.2f m/s\n",
                       instantanea, amostra.avgSpeedMs, amostra.gustSpeedMs);
+
+        // So imprime quando ha descarte de verdade -- nao poluir o log
+        // normal com "descartados=0" a cada 10s.
+        if (janela.descartadosPorBuffer > 0) {
+            Serial.printf("[medicao] descartados_por_buffer=%lu\n",
+                          (unsigned long) janela.descartadosPorBuffer);
+        }
     }
 
     // Subtracao antes da comparacao: imune ao estouro do millis()

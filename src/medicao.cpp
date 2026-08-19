@@ -70,7 +70,7 @@ bool gravarTimestampSeCouber(uint32_t* buffer, uint32_t capacidade,
 
 Amostra calcularAmostra(const JanelaDePulsos& janela)
 {
-    Amostra amostra;
+    Amostra amostra = {};
 
     const float freqMediaHz = janela.contagem / 10.0f;
     amostra.avgSpeedMs = 1.319f * freqMediaHz / PULSOS_POR_VOLTA;
