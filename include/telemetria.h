@@ -1,0 +1,52 @@
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+// ~4h de buffer a 10s/amostra. So em RAM -- decisao deliberada, ver
+// specs/telemetria.md #9: perda de dados nao-enviados em reinicio e
+// aceitavel para esta estacao (ligada na tomada, reinicios devem ser
+// raros); simplicidade e ausencia de desgaste de flash pesaram mais.
+constexpr uint32_t CAPACIDADE_BUFFER_TELEMETRIA = 1440;
+
+// Limite do backend por requisicao (backend/README.md).
+constexpr uint32_t MAX_AMOSTRAS_POR_LOTE = 500;
+
+// Teto de lotes seguidos numa unica tentativa de esvaziamento. Dado
+// CAPACIDADE_BUFFER_TELEMETRIA=1440 e MAX_AMOSTRAS_POR_LOTE=500, 3 lotes
+// (ceil(1440/500)) ja bastam pra esvaziar o buffer inteiro numa unica
+// passada -- existe como teto explicito pra nao depender de recalcular
+// esse numero a mao se a capacidade do buffer mudar no futuro.
+constexpr uint32_t MAX_LOTES_POR_CICLO = 3;
+
+struct AmostraTelemetria {
+    uint32_t measuredAt;   // unix UTC, segundos -- so grava se o relogio
+                            // (NTP) ja estiver sincronizado
+    float    avgSpeedMs;
+    float    gustSpeedMs;
+};
+
+struct BufferTelemetria {
+    AmostraTelemetria amostras[CAPACIDADE_BUFFER_TELEMETRIA];
+    uint32_t inicio;                  // indice circular da amostra mais antiga
+    uint32_t quantidade;              // quantas amostras validas tem agora
+    uint32_t descartadasPorOverflow;  // contador so-diagnostico (Serial) --
+                                        // nao entra no payload
+};
+
+// Insere uma amostra. Se o buffer estiver cheio, sobrescreve a mais
+// antiga (preserva o mais recente) e incrementa descartadasPorOverflow.
+void inserirAmostra(BufferTelemetria& buffer, const AmostraTelemetria& amostra);
+
+// Copia ate `capacidadeSaida` das amostras mais antigas para `saida`,
+// SEM remover do buffer -- quem chama decide se remove, depois de saber
+// o resultado do envio. Devolve quantas copiou (pode ser menos que
+// capacidadeSaida se o buffer tiver menos amostras que isso).
+uint32_t copiarProximoLote(const BufferTelemetria& buffer,
+                            AmostraTelemetria* saida, uint32_t capacidadeSaida);
+
+// Remove as `n` amostras mais antigas -- chamado depois de confirmar que
+// foram aceitas (2xx) ou definitivamente rejeitadas (4xx). Se `n` for
+// maior que a quantidade disponivel, remove so o que tem (nunca da
+// numero negativo).
+void removerMaisAntigas(BufferTelemetria& buffer, uint32_t n);
