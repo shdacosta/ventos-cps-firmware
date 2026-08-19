@@ -154,6 +154,36 @@ void test_amostra_buffer_no_limite_nao_le_fora(void) {
     TEST_ASSERT_FLOAT_WITHIN(0.05f, avgEsperado, amostra.avgSpeedMs);
 }
 
+void test_instantanea_pulso_recente_usa_periodo(void) {
+    JanelaDePulsos janela = {};
+    janela.ultimoPeriodoMicros = 475000;       // 10 km/h
+    janela.microsDesdeUltimoPulso = 100000;    // 100ms atras -- recente
+
+    float velocidade = velocidadeInstantaneaMs(janela);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.77f, velocidade);
+}
+
+void test_instantanea_calmaria_apos_10s_sem_pulso(void) {
+    JanelaDePulsos janela = {};
+    janela.ultimoPeriodoMicros = 475000;       // implicaria 10 km/h
+    janela.microsDesdeUltimoPulso = 10000001;  // 1 micros acima de 10s
+
+    float velocidade = velocidadeInstantaneaMs(janela);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, velocidade);
+}
+
+void test_instantanea_exatamente_no_limite_ainda_conta(void) {
+    JanelaDePulsos janela = {};
+    janela.ultimoPeriodoMicros = 475000;
+    janela.microsDesdeUltimoPulso = 10000000;  // exatamente 10s
+
+    float velocidade = velocidadeInstantaneaMs(janela);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.77f, velocidade);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_periodo_para_velocidade_partida);
@@ -167,5 +197,8 @@ int main(void) {
     RUN_TEST(test_amostra_vento_constante_rajada_igual_media);
     RUN_TEST(test_amostra_rajada_no_meio_supera_media);
     RUN_TEST(test_amostra_buffer_no_limite_nao_le_fora);
+    RUN_TEST(test_instantanea_pulso_recente_usa_periodo);
+    RUN_TEST(test_instantanea_calmaria_apos_10s_sem_pulso);
+    RUN_TEST(test_instantanea_exatamente_no_limite_ainda_conta);
     return UNITY_END();
 }

@@ -3,6 +3,7 @@
 namespace {
 
 constexpr uint32_t JANELA_RAJADA_MICROS = 3'000'000;  // 3s
+constexpr uint32_t TIMEOUT_CALMARIA_MICROS = 10'000'000;  // 10s
 
 float calcularPicoDeRajada(const uint32_t* timestamps, uint32_t total)
 {
@@ -80,4 +81,13 @@ Amostra calcularAmostra(const JanelaDePulsos& janela)
     }
 
     return amostra;
+}
+
+float velocidadeInstantaneaMs(const JanelaDePulsos& janela)
+{
+    if (janela.microsDesdeUltimoPulso > TIMEOUT_CALMARIA_MICROS) {
+        return 0.0f;
+    }
+
+    return periodoParaVelocidadeMs(janela.ultimoPeriodoMicros);
 }

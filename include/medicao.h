@@ -43,3 +43,10 @@ struct Amostra {
 // Unica fronteira entre o modulo de hardware e o de matematica: recebe a
 // janela crua, devolve o par pronto pro payload da Fase 5.
 Amostra calcularAmostra(const JanelaDePulsos& janela);
+
+// So para uso local (Serial), NAO vai no payload da Fase 5 -- o backend
+// so aceita avg_speed_ms/gust_speed_ms por janela de 10s, nao um valor
+// "agora". Aplica o timeout de calmaria: retorna 0 se
+// microsDesdeUltimoPulso > 10s, mesmo que ultimoPeriodoMicros implique
+// velocidade diferente de zero.
+float velocidadeInstantaneaMs(const JanelaDePulsos& janela);
