@@ -49,3 +49,17 @@ uint32_t copiarProximoLote(const BufferTelemetria& buffer,
 // maior que a quantidade disponivel, remove so o que tem (nunca da
 // numero negativo).
 void removerMaisAntigas(BufferTelemetria& buffer, uint32_t n);
+
+enum class AcaoAposResposta {
+    Remover,    // 2xx -- lote aceito, remove do buffer
+    Descartar,  // 4xx -- lote invalido (payload malformado, token errado,
+                // lote grande demais) -- reenviar o mesmo lote so
+                // repetiria o mesmo erro, entao descarta e loga
+    Manter,     // erro de conexao/timeout, ou 5xx -- problema transitorio,
+                // mantem no buffer para a proxima tentativa
+};
+
+// `codigo` segue a convencao do HTTPClient do Arduino: negativo = erro
+// de conexao/timeout (sem resposta HTTP de verdade), positivo = status
+// HTTP de verdade.
+AcaoAposResposta decidirAcaoAposResposta(int codigo);

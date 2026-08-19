@@ -35,3 +35,17 @@ void removerMaisAntigas(BufferTelemetria& buffer, uint32_t n)
     buffer.inicio = (buffer.inicio + remover) % CAPACIDADE_BUFFER_TELEMETRIA;
     buffer.quantidade -= remover;
 }
+
+AcaoAposResposta decidirAcaoAposResposta(int codigo)
+{
+    if (codigo < 0) {
+        return AcaoAposResposta::Manter;
+    }
+    if (codigo >= 200 && codigo < 300) {
+        return AcaoAposResposta::Remover;
+    }
+    if (codigo >= 400 && codigo < 500) {
+        return AcaoAposResposta::Descartar;
+    }
+    return AcaoAposResposta::Manter;
+}

@@ -113,6 +113,28 @@ void test_buffer_vazio_copiar_e_remover_nao_fazem_nada(void) {
     TEST_ASSERT_EQUAL_UINT32(0, buffer.inicio);
 }
 
+void test_acao_2xx_remove(void) {
+    TEST_ASSERT_TRUE(AcaoAposResposta::Remover == decidirAcaoAposResposta(200));
+    TEST_ASSERT_TRUE(AcaoAposResposta::Remover == decidirAcaoAposResposta(201));
+}
+
+void test_acao_4xx_descarta(void) {
+    TEST_ASSERT_TRUE(AcaoAposResposta::Descartar == decidirAcaoAposResposta(400));
+    TEST_ASSERT_TRUE(AcaoAposResposta::Descartar == decidirAcaoAposResposta(422));
+}
+
+void test_acao_5xx_mantem(void) {
+    TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(500));
+    TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(503));
+}
+
+void test_acao_erro_de_conexao_mantem(void) {
+    // HTTPClient do Arduino devolve codigo negativo quando nao ha
+    // resposta HTTP de verdade (timeout, recusa de conexao, etc.)
+    TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(-1));
+    TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(-11));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_inserir_com_espaco_sobrando);
@@ -122,5 +144,9 @@ int main(void) {
     RUN_TEST(test_remover_mais_antigas_depois_inserir_nao_corrompe_indices);
     RUN_TEST(test_remover_mais_que_quantidade_disponivel_nao_estoura);
     RUN_TEST(test_buffer_vazio_copiar_e_remover_nao_fazem_nada);
+    RUN_TEST(test_acao_2xx_remove);
+    RUN_TEST(test_acao_4xx_descarta);
+    RUN_TEST(test_acao_5xx_mantem);
+    RUN_TEST(test_acao_erro_de_conexao_mantem);
     return UNITY_END();
 }
