@@ -80,22 +80,38 @@ O programa do fabricante é para Arduino UNO e tem defeitos que não devem ser p
 
 ## 3. Wi-Fi
 
-**Status: implementado** (`src/wifi_gerenciado.{h,cpp}`, Fase 4).
+**Status: implementado e parcialmente verificado** (`src/wifi_gerenciado.{h,cpp}`, Fase 4).
 
 Requisitos:
 
-1. Conectar na rede ✅
-2. Reportar conexão e IP no Serial Monitor ✅
-3. **Reconectar automaticamente** em queda ✅ — backoff exponencial, teto de 30 s
-4. Nunca bloquear a medição — a contagem de pulsos não pode parar durante uma tentativa de reconexão ✅ — máquina de estados não-bloqueante, `atualizarWifi()` chamada a cada `loop()` sem nenhum `delay()`
+1. Conectar na rede ✅ **confirmado ao vivo** — conectou à rede real, IP `192.168.15.129`
+2. Reportar conexão e IP no Serial Monitor ✅ **confirmado ao vivo**
+3. **Reconectar automaticamente** em queda 💡 implementado (backoff exponencial, teto de 30 s), **mas nunca visto reconectar de verdade** — o sinal ficou estável durante o teste (nenhuma queda natural aconteceu) e o teste ativo (desligar o roteador) foi adiado de propósito para quando o sensor entrar, testando os dois juntos
+4. Nunca bloquear a medição — a contagem de pulsos não pode parar durante uma tentativa de reconexão ✅ **confirmado ao vivo** — status ininterrupto a cada 5 s por 35 s seguidos, heap estável (sem vazamento), zero `delay()` no `loop()`
 
 Boas práticas aplicadas:
 
 - Reconexão com **backoff exponencial** e teto — `WiFi.reconnect()`, sem loop apertado
 - `WiFi.setSleep(false)` — estação ligada na tomada, latência importa mais que consumo
 - Credenciais fora do código versionado (`include/secrets.h`, no `.gitignore`; `secrets.h.example` versionado como template)
-- **NTP para timestamp confiável, resolvido**: o carimbo é do **ESP32**, não do servidor — decisão já tomada no contrato do backend (`measured_at`, ver `backend/README.md` no repo do servidor), por causa do buffer offline da Fase 5. `configTime()` dispara a sincronização assim que conecta; `getLocalTime()` com timeout curto (100 ms) evita bloquear o `loop()` enquanto ainda não sincronizou
+- **NTP para timestamp confiável, resolvido e confirmado ao vivo**: o carimbo é do **ESP32**, não do servidor — decisão já tomada no contrato do backend (`measured_at`, ver `backend/README.md` no repo do servidor), por causa do buffer offline da Fase 5. `configTime()` dispara a sincronização assim que conecta; `getLocalTime()` com timeout curto (100 ms) evita bloquear o `loop()` enquanto ainda não sincronizou
 - Watchdog: reset automático se o loop principal travar — **ainda não implementado**, fica para a Fase 5 junto do buffer offline
+
+### ❓ Achado do teste ao vivo: sinal fraco
+
+RSSI medido entre **-82 e -84 dBm** durante todo o teste, na mesma casa do roteador. 📄 Como
+referência geral de rádio, abaixo de -80 dBm o Wi-Fi já é considerado fraco/instável — este
+valor está no limite do que costuma funcionar de forma confiável.
+
+Relevante para a Fase 6: se o sinal já é fraco perto do roteador, a instalação definitiva no
+alto da casa da caixa d'água pode precisar de repetidor Wi-Fi ou antena externa. Ainda não é
+urgente, mas entra no radar de pendências de instalação.
+
+### Pendência: reconexão nunca observada em queda real
+
+Não depende do conector dupont — poderia ser testado a qualquer momento desligando o
+roteador. Adiado por escolha deliberada: testar reconexão junto com o sensor (Fase 2/3)
+numa sessão só, em vez de duas verificações separadas.
 
 ---
 

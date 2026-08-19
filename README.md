@@ -124,7 +124,7 @@ Detalhes, pinos a evitar e esquema de ligação: [`specs/hardware.md`](specs/har
 
 **Fase 1 concluída** — ambiente, compilação, gravação e monitor validados.
 
-**Fase 4 em andamento** — conexão Wi-Fi não-bloqueante, reconexão com backoff exponencial e sincronização de hora via NTP implementadas (`src/wifi_gerenciado.cpp`). Adiantada fora de ordem porque não depende do anemômetro.
+**Fase 4 em andamento** — conexão Wi-Fi não-bloqueante, reconexão com backoff exponencial e sincronização de hora via NTP implementadas (`src/wifi_gerenciado.cpp`). Adiantada fora de ordem porque não depende do anemômetro. **Testada ao vivo**: conectou, mostrou IP, sincronizou NTP, e rodou 35 s sem travar nem vazar memória. Reconexão em queda real ainda não foi observada — adiada de propósito para testar junto com o sensor. Sinal fraco medido perto do roteador (-82 a -84 dBm), relevante para a instalação da Fase 6.
 
 **Fase 2 bloqueada** — o anemômetro não pode ser ligado até chegar o conector dupont. Checklist do que confirmar assim que chegar: [`specs/pendencias-hardware.md`](specs/pendencias-hardware.md).
 
