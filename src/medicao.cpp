@@ -1,5 +1,46 @@
 #include "medicao.h"
 
+namespace {
+
+constexpr uint32_t JANELA_RAJADA_MICROS = 3'000'000;  // 3s
+
+float calcularPicoDeRajada(const uint32_t* timestamps, uint32_t total)
+{
+    if (total < 2) {
+        return 0.0f;  // precisa de pelo menos 2 pontos pra ter um periodo
+    }
+
+    float picoHz = 0.0f;
+    uint32_t inicio = 0;
+
+    // Dois ponteiros: para cada "fim" avancando, retrocede "inicio" ate
+    // caber na janela de 3s. Pulsos dentro de [fim - 3s, fim] contam.
+    for (uint32_t fim = 0; fim < total; fim++) {
+        while (timestamps[fim] - timestamps[inicio] > JANELA_RAJADA_MICROS) {
+            inicio++;
+        }
+
+        // PERIODOS entre pulsos, nao pontos: N pontos uniformemente
+        // espacados cobrem N-1 periodos. Contar pontos superestimaria
+        // a frequencia sistematicamente -- 10 pulsos a 1s dariam "rajada"
+        // de 1,33 Hz contra uma media real de 1,0 Hz, quebrando a
+        // invariante "vento constante = rajada igual a media".
+        const uint32_t periodosNaJanela = fim - inicio;
+        if (periodosNaJanela == 0) {
+            continue;  // um unico ponto na janela, sem periodo formado
+        }
+
+        const float freqHz = periodosNaJanela / 3.0f;
+        if (freqHz > picoHz) {
+            picoHz = freqHz;
+        }
+    }
+
+    return picoHz;
+}
+
+}  // namespace
+
 float periodoParaVelocidadeMs(uint32_t periodoMicros)
 {
     if (periodoMicros == 0) {
@@ -25,10 +66,18 @@ Amostra calcularAmostra(const JanelaDePulsos& janela)
 {
     Amostra amostra;
 
-    const float freqHz = janela.contagem / 10.0f;
-    amostra.avgSpeedMs = 1.319f * freqHz / PULSOS_POR_VOLTA;
+    const float freqMediaHz = janela.contagem / 10.0f;
+    amostra.avgSpeedMs = 1.319f * freqMediaHz / PULSOS_POR_VOLTA;
 
-    amostra.gustSpeedMs = amostra.avgSpeedMs;  // placeholder ate a Task 5
+    const float picoHz = calcularPicoDeRajada(janela.timestamps, janela.totalTimestamps);
+    amostra.gustSpeedMs = 1.319f * picoHz / PULSOS_POR_VOLTA;
+
+    // A rajada nunca pode ser menor que a media -- se o buffer nao tinha
+    // timestamps suficientes (janela vazia mas contagem>0, caso
+    // teoricamente impossivel mas defensivo), nao deixa gust < avg.
+    if (amostra.gustSpeedMs < amostra.avgSpeedMs) {
+        amostra.gustSpeedMs = amostra.avgSpeedMs;
+    }
 
     return amostra;
 }
