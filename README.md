@@ -34,6 +34,8 @@ Compila, grava e abre o monitor serial — o comando do dia a dia.
 | `make update` | Atualiza plataforma/libs dentro dos limites do `platformio.ini` |
 | `make check` | Análise estática (lint) |
 | `make test` | Testes do PlatformIO |
+| `make test ENV=native` | Roda os testes de `medicao.cpp` no Mac, sem placa |
+| `make flash ENV=calibracao` | Grava o modo de calibração (contagem de pulsos/volta) |
 
 A porta é detectada sozinha. Havendo mais de um dispositivo conectado, force a certa:
 
@@ -54,6 +56,21 @@ cp include/secrets.h.example include/secrets.h
 ```
 
 Edite `include/secrets.h` com o SSID e a senha da sua rede. Esse arquivo está no `.gitignore` e nunca é commitado — só o `.example` (sem credenciais reais) fica versionado.
+
+---
+
+## Calibração de pulsos/volta
+
+Quando o conector dupont chegar, antes de tudo:
+
+```bash
+make flash ENV=calibracao
+```
+
+Gire o rotor exatamente 10 voltas devagar e leia `total_acumulado` no
+monitor serial. 10 → 1 pulso/volta (já assumido em todo o projeto);
+20 → 2 pulsos/volta (trocar `PULSOS_POR_VOLTA` em `include/medicao.h`
+para `2.0f`). Detalhes: [`specs/pendencias-hardware.md`](specs/pendencias-hardware.md).
 
 ---
 
