@@ -2,6 +2,12 @@
 
 #include "medicao.h"
 
+// Aloca os buffers grandes de envio em heap (nao static/.bss -- a
+// regiao estatica do linker do ESP32 e muito mais apertada que o heap
+// geral). Chamar uma vez no setup(), junto de iniciarWifi()/
+// iniciarAnemometro()/iniciarWatchdog().
+void iniciarEnvio();
+
 // Converte a Amostra (ja calculada pela Fase 2+3) num registro de
 // telemetria e guarda no buffer -- so se o relogio (NTP) ja estiver
 // sincronizado, para nunca guardar measured_at invalido (o backend

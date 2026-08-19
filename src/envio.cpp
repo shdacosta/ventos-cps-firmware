@@ -17,7 +17,19 @@ constexpr uint32_t    TIMEOUT_HTTP_MS  = 8000;
 BufferTelemetria bufferTelemetria;
 uint32_t         ultimoDescartadasReportado = 0;
 
+// Alocados em heap por iniciarEnvio(), nao static/.bss -- ver comentario
+// em envio.h. Continuam validos para o resto da vida do programa (nunca
+// sao liberados), so nao ocupam a regiao estatica apertada do linker.
+char*              payloadJson = nullptr;
+AmostraTelemetria* loteSaida   = nullptr;
+
 }  // namespace
+
+void iniciarEnvio()
+{
+    payloadJson = new char[CAPACIDADE_PAYLOAD_JSON];
+    loteSaida   = new AmostraTelemetria[MAX_AMOSTRAS_POR_LOTE];
+}
 
 void registrarAmostra(const Amostra& amostra)
 {
@@ -38,9 +50,6 @@ void tentarEnviarLotes()
         return;
     }
 
-    static char             payloadJson[CAPACIDADE_PAYLOAD_JSON];
-    static AmostraTelemetria loteSaida[MAX_AMOSTRAS_POR_LOTE];
-
     uint32_t lotesEnviados = 0;
     while (bufferTelemetria.quantidade > 0 && lotesEnviados < MAX_LOTES_POR_CICLO) {
         const uint32_t n = copiarProximoLote(bufferTelemetria, loteSaida, MAX_AMOSTRAS_POR_LOTE);
@@ -48,7 +57,7 @@ void tentarEnviarLotes()
         const size_t escrito = montarPayloadJson(
             loteSaida, n, DEVICE_ID, FIRMWARE_VERSION,
             (uint32_t) (millis() / 1000), ESP.getFreeHeap(), wifiRssiDbm(),
-            payloadJson, sizeof(payloadJson));
+            payloadJson, CAPACIDADE_PAYLOAD_JSON);
 
         if (escrito == 0) {
             // Nao deveria acontecer com CAPACIDADE_PAYLOAD_JSON

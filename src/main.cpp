@@ -12,10 +12,12 @@
 // ============================================================
 
 #include <Arduino.h>
+#include <ArduinoOTA.h>
 
 #include "anemometro.h"
 #include "envio.h"
 #include "medicao.h"
+#include "secrets.h"
 #include "watchdog.h"
 #include "wifi_gerenciado.h"
 
@@ -92,16 +94,23 @@ void setup()
     pinMode(LED_PIN, OUTPUT);
 
     Serial.println();
-    Serial.println("=== Ventos Campinas | Fase 4 ===");
+    Serial.println("=== Ventos Campinas | Fase 4 + Fase 5 (OTA) ===");
 
     iniciarWifi();
     iniciarAnemometro();
+    iniciarEnvio();
     iniciarWatchdog();
+
+    ArduinoOTA.setHostname("ventos-cps-anemometro");
+    ArduinoOTA.setPassword(OTA_SENHA);
+    ArduinoOTA.begin();
+    Serial.println("[ota] pronto para atualizacao via rede");
 }
 
 void loop()
 {
     alimentarWatchdog();
+    ArduinoOTA.handle();
     atualizarWifi();
 
     const uint32_t agora = millis();
