@@ -90,6 +90,22 @@ caminho crítico da ISR.
 
 ---
 
+## 6. Janela de medição assume 10s fixos — pode corromper avg/gust se um envio HTTP demorar mais que isso ⚠️ — reavaliar quando o sensor conectar
+
+**Por quê:** `calcularAmostra()` (`medicao.cpp`) faz `freqHz = janela.contagem / 10.0f` — a divisão por 10 é fixa, assume que a janela sempre dura exatamente 10s. Isso era verdade até a Fase 5: o `loop()` nunca bloqueava por mais que isso. Agora `tentarEnviarLotes()` pode bloquear (POST HTTP com timeout de 8s, até `MAX_LOTES_POR_CICLO=3` lotes seguidos) — se um ciclo de envio demorar mais de 10s no total, a próxima janela de medição fecha "atrasada", com mais de 10s de pulsos acumulados, mas a fórmula continua dividindo por 10 — `avg_speed_ms` sai inflado (e `gust_speed_ms` segue junto, pelo clamp que impede rajada menor que a média).
+
+**Por que ninguém viu ainda:** sem o anemômetro conectado, `contagem` é sempre 0, então toda janela dá `avg=0.00` independente de quanto tempo durou — o bug é matematicamente invisível até existir vento de verdade sendo contado.
+
+**Como resolver, passo a passo, quando o sensor estiver conectado e o firmware de telemetria já estiver em uso real:**
+
+1. Confirmar que o cenário é alcançável de fato: link de sinal fraco (RSSI baixo, já documentado como característico desta instalação) + backlog grande o suficiente para vários lotes seguidos no mesmo ciclo de 60s.
+2. Decidir entre duas correções (achado da revisão final da Fase 5, não implementado de propósito — precisa de desenho cuidadoso, não uma emenda apressada):
+   - **Mínima:** se `millis() - ultimaMedicao` vier muito maior que 10000 quando o `loop()` retomar depois de um envio lento, descartar a janela parcial (`lerEZerarJanela()` sem usar o resultado) e ressincronizar `ultimaMedicao` — perde uma amostra em vez de publicar uma errada, loga alto.
+   - **Correta:** passar o tempo decorrido real para `calcularAmostra()` em vez do `10.0f` fixo, calculando a frequência com o denominador certo.
+3. Cobrir com teste nativo (a lógica de `calcularAmostra()` já é testável em `env:native` — um teste com janela "mais longa que 10s" deveria bastar pra travar a correção escolhida).
+
+---
+
 ## Como usar este arquivo
 
 Risque o item conforme for confirmado, com a data e o resultado. Quando o
