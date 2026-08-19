@@ -64,6 +64,7 @@ void tentarEnviarLotes()
         http.addHeader("Content-Type", "application/json");
         http.addHeader("Authorization", String("Bearer ") + INGEST_TOKEN);
         http.setTimeout(TIMEOUT_HTTP_MS);
+        http.setConnectTimeout(TIMEOUT_HTTP_MS);
 
         const int codigo = http.POST((uint8_t*) payloadJson, escrito);
         http.end();
