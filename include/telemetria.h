@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 // ~4h de buffer a 10s/amostra. So em RAM -- decisao deliberada, ver
@@ -31,7 +30,7 @@ struct BufferTelemetria {
     uint32_t inicio;                  // indice circular da amostra mais antiga
     uint32_t quantidade;              // quantas amostras validas tem agora
     uint32_t descartadasPorOverflow;  // contador so-diagnostico (Serial) --
-                                        // nao entra no payload
+                                       // nao entra no payload
 };
 
 // Insere uma amostra. Se o buffer estiver cheio, sobrescreve a mais

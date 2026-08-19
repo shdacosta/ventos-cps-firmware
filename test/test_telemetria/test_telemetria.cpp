@@ -95,6 +95,24 @@ void test_remover_mais_que_quantidade_disponivel_nao_estoura(void) {
     TEST_ASSERT_EQUAL_UINT32(0, buffer.quantidade);
 }
 
+void test_buffer_vazio_copiar_e_remover_nao_fazem_nada(void) {
+    BufferTelemetria buffer = {};
+
+    // Buffer recém-criado (estado no primeiro boot)
+    TEST_ASSERT_EQUAL_UINT32(0, buffer.quantidade);
+    TEST_ASSERT_EQUAL_UINT32(0, buffer.inicio);
+
+    // Copiar de um buffer vazio deve retornar 0
+    AmostraTelemetria saida[10];
+    uint32_t copiadas = copiarProximoLote(buffer, saida, 10);
+    TEST_ASSERT_EQUAL_UINT32(0, copiadas);
+
+    // Remover de um buffer vazio não deve corromper nada
+    removerMaisAntigas(buffer, 5);
+    TEST_ASSERT_EQUAL_UINT32(0, buffer.quantidade);
+    TEST_ASSERT_EQUAL_UINT32(0, buffer.inicio);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_inserir_com_espaco_sobrando);
@@ -103,5 +121,6 @@ int main(void) {
     RUN_TEST(test_copiar_lote_capado_no_maximo_pedido);
     RUN_TEST(test_remover_mais_antigas_depois_inserir_nao_corrompe_indices);
     RUN_TEST(test_remover_mais_que_quantidade_disponivel_nao_estoura);
+    RUN_TEST(test_buffer_vazio_copiar_e_remover_nao_fazem_nada);
     return UNITY_END();
 }
