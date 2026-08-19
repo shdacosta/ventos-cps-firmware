@@ -78,9 +78,11 @@ Amostra calcularAmostra(const JanelaDePulsos& janela)
     const float picoHz = calcularPicoDeRajada(janela.timestamps, janela.totalTimestamps);
     amostra.gustSpeedMs = 1.319f * picoHz / PULSOS_POR_VOLTA;
 
-    // A rajada nunca pode ser menor que a media -- se o buffer nao tinha
-    // timestamps suficientes (janela vazia mas contagem>0, caso
-    // teoricamente impossivel mas defensivo), nao deixa gust < avg.
+    // A rajada crua tem um vies sistematico para baixo (denominador
+    // fixo de 3s no calculo de frequencia, enquanto o numero de
+    // periodos capturados e sempre um pouco menor que o teorico) --
+    // esse clamp dispara ROTINEIRAMENTE em vento estavel, nao e so
+    // defensivo. Nao remova achando que e codigo morto.
     if (amostra.gustSpeedMs < amostra.avgSpeedMs) {
         amostra.gustSpeedMs = amostra.avgSpeedMs;
     }
