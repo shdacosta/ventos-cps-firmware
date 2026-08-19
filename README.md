@@ -180,7 +180,7 @@ Detalhes, pinos a evitar e esquema de ligação: [`specs/hardware.md`](specs/har
 - **Fase 1** — ambiente, compilação, gravação e monitor validados.
 - **Fase 2+3** — captura de pulsos via ISR (GPIO 25) e cálculo de velocidade/rajada/calmaria, com matemática testada nativamente. Verificação da ISR sob interrupção real (pulsos/volta, debounce) segue pendente do conector dupont — checklist em [`specs/pendencias-hardware.md`](specs/pendencias-hardware.md).
 - **Fase 4** — Wi-Fi não-bloqueante, reconexão com backoff exponencial, hora via NTP. Testada ao vivo. Sinal fraco medido perto do roteador (-82 a -84 dBm), relevante para a instalação da Fase 6.
-- **Fase 5** — envio HTTP em lote (buffer de 4h em RAM, alocado em heap), watchdog e OTA via `ArduinoOTA`, testados ao vivo contra o backend real. A primeira tentativa de gravação por OTA parou em ~18% (sinal fraco, mesmo RSSI baixo da Fase 4); a segunda, sem nenhuma mudança, completou (`[SUCCESS]`, que já inclui verificação de checksum pelo próprio protocolo `espota`) — ver linha correspondente em "Solução de problemas".
+- **Fase 5** — envio HTTP em lote (buffer de telemetria de 4h em RAM; os buffers de transmissão do payload JSON e do lote de saída ficam alocados em heap, para não apertar a região estática do linker), watchdog e OTA via `ArduinoOTA`, testados ao vivo contra o backend real. A primeira tentativa de gravação por OTA parou em ~18% (sinal fraco, mesmo RSSI baixo da Fase 4); a segunda, sem nenhuma mudança, completou (`[SUCCESS]`, que já inclui verificação de checksum pelo próprio protocolo `espota`) — ver linha correspondente em "Solução de problemas".
 
 **Fase 6 (instalação física, PC817)** — ainda não iniciada.
 

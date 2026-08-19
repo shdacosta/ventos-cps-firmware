@@ -46,6 +46,18 @@ void registrarAmostra(const Amostra& amostra)
 
 void tentarEnviarLotes()
 {
+    // Antes da checagem de Wi-Fi de proposito: o overflow do buffer so
+    // acontece depois de ~4h de Wi-Fi caido (buffer cheio, sem
+    // conseguir esvaziar) -- exatamente o cenario em que wifiConectado()
+    // e false. Se este bloco ficasse depois do return abaixo, o caso
+    // mais importante de avisar sobre overflow seria justamente o caso
+    // em que o aviso nunca apareceria no Serial.
+    if (bufferTelemetria.descartadasPorOverflow != ultimoDescartadasReportado) {
+        Serial.printf("[telemetria] descartadas_por_overflow=%lu (total desde o boot)\n",
+                      (unsigned long) bufferTelemetria.descartadasPorOverflow);
+        ultimoDescartadasReportado = bufferTelemetria.descartadasPorOverflow;
+    }
+
     if (!wifiConectado()) {
         return;
     }
@@ -98,11 +110,5 @@ void tentarEnviarLotes()
 
         removerMaisAntigas(bufferTelemetria, n);
         lotesEnviados++;
-    }
-
-    if (bufferTelemetria.descartadasPorOverflow != ultimoDescartadasReportado) {
-        Serial.printf("[telemetria] descartadas_por_overflow=%lu (total desde o boot)\n",
-                      (unsigned long) bufferTelemetria.descartadasPorOverflow);
-        ultimoDescartadasReportado = bufferTelemetria.descartadasPorOverflow;
     }
 }
