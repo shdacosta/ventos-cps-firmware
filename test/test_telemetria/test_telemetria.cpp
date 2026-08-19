@@ -1,5 +1,7 @@
 #include <unity.h>
 
+#include <ArduinoJson.h>
+
 #include "telemetria.h"
 
 void test_inserir_com_espaco_sobrando(void) {
@@ -135,6 +137,67 @@ void test_acao_erro_de_conexao_mantem(void) {
     TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(-11));
 }
 
+void test_montar_payload_estrutura_correta(void) {
+    AmostraTelemetria amostras[2] = {
+        {1755432000, 3.21f, 5.84f},
+        {1755432010, 3.44f, 4.10f},
+    };
+
+    char saida[512];
+    size_t escrito = montarPayloadJson(amostras, 2, "anemometro-01", "1.0.0",
+                                        86400, 351476, -62, saida, sizeof(saida));
+
+    TEST_ASSERT_TRUE(escrito > 0);
+
+    JsonDocument doc;
+    DeserializationError erro = deserializeJson(doc, saida, escrito);
+    TEST_ASSERT_TRUE(erro == DeserializationError::Ok);
+
+    TEST_ASSERT_EQUAL_STRING("anemometro-01", doc["device_id"]);
+    TEST_ASSERT_EQUAL_STRING("1.0.0", doc["firmware_version"]);
+    TEST_ASSERT_EQUAL_UINT32(86400, doc["health"]["uptime_seconds"]);
+    TEST_ASSERT_EQUAL_UINT32(351476, doc["health"]["free_heap_bytes"]);
+    TEST_ASSERT_EQUAL_INT(-62, doc["health"]["wifi_rssi_dbm"]);
+
+    TEST_ASSERT_EQUAL_UINT32(2, doc["samples"].size());
+    TEST_ASSERT_EQUAL_UINT32(1755432000, doc["samples"][0]["measured_at"]);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 3.21f, doc["samples"][0]["avg_speed_ms"]);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 5.84f, doc["samples"][0]["gust_speed_ms"]);
+    TEST_ASSERT_EQUAL_UINT32(1755432010, doc["samples"][1]["measured_at"]);
+}
+
+void test_montar_payload_buffer_pequeno_demais_devolve_zero(void) {
+    AmostraTelemetria amostras[1] = {{1000, 1.0f, 2.0f}};
+
+    char saidaMinuscula[5];  // com certeza pequeno demais
+    size_t escrito = montarPayloadJson(amostras, 1, "anemometro-01", "1.0.0",
+                                        100, 200000, -50, saidaMinuscula, sizeof(saidaMinuscula));
+
+    TEST_ASSERT_EQUAL_UINT32(0, escrito);
+}
+
+void test_montar_payload_500_amostras_pior_caso_cabe_no_buffer(void) {
+    // Pior caso de tamanho: 500 amostras (o maximo por lote) com o maior
+    // numero de digitos plausivel (timestamp de 10 digitos, velocidades
+    // negativas com sinal -- nunca acontece de verdade, mas testa a
+    // string mais longa que o formato permite). Prova que
+    // CAPACIDADE_PAYLOAD_JSON realmente comporta o pior caso, em vez de
+    // confiar numa conta feita a mao.
+    static AmostraTelemetria amostras[MAX_AMOSTRAS_POR_LOTE];
+    for (uint32_t i = 0; i < MAX_AMOSTRAS_POR_LOTE; i++) {
+        amostras[i] = AmostraTelemetria{2000000000u + i, -12.345678f, -37.500000f};
+    }
+
+    static char saida[CAPACIDADE_PAYLOAD_JSON];
+    size_t escrito = montarPayloadJson(amostras, MAX_AMOSTRAS_POR_LOTE,
+                                        "anemometro-01", "1.0.0",
+                                        999999999, 999999999, -100,
+                                        saida, sizeof(saida));
+
+    TEST_ASSERT_TRUE(escrito > 0);
+    TEST_ASSERT_TRUE(escrito < CAPACIDADE_PAYLOAD_JSON);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_inserir_com_espaco_sobrando);
@@ -148,5 +211,8 @@ int main(void) {
     RUN_TEST(test_acao_4xx_descarta);
     RUN_TEST(test_acao_5xx_mantem);
     RUN_TEST(test_acao_erro_de_conexao_mantem);
+    RUN_TEST(test_montar_payload_estrutura_correta);
+    RUN_TEST(test_montar_payload_buffer_pequeno_demais_devolve_zero);
+    RUN_TEST(test_montar_payload_500_amostras_pior_caso_cabe_no_buffer);
     return UNITY_END();
 }

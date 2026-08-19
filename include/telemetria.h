@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 // ~4h de buffer a 10s/amostra. So em RAM -- decisao deliberada, ver
@@ -63,3 +64,21 @@ enum class AcaoAposResposta {
 // de conexao/timeout (sem resposta HTTP de verdade), positivo = status
 // HTTP de verdade.
 AcaoAposResposta decidirAcaoAposResposta(int codigo);
+
+// Pior caso: 500 amostras (MAX_AMOSTRAS_POR_LOTE) de ate ~82 bytes cada
+// em JSON (~41KB) + cabecalho (device_id, firmware_version, health,
+// ~250 bytes) -- com folga. O teste
+// test_montar_payload_500_amostras_pior_caso_cabe_no_buffer prova isso
+// de verdade, em vez de confiar só nesta conta.
+constexpr size_t CAPACIDADE_PAYLOAD_JSON = 49152;
+
+// Monta o corpo JSON de um lote (ate MAX_AMOSTRAS_POR_LOTE amostras) no
+// formato exato que o backend espera (backend/README.md). Escreve em
+// `saida` (capacidade `capacidadeSaida`), devolve os bytes escritos, ou
+// 0 se nao coube -- chamador deve tratar como erro (nao deveria
+// acontecer com CAPACIDADE_PAYLOAD_JSON, ver teste de pior caso).
+size_t montarPayloadJson(const AmostraTelemetria* amostras, uint32_t total,
+                          const char* deviceId, const char* firmwareVersion,
+                          uint32_t uptimeSeconds, uint32_t freeHeapBytes,
+                          int wifiRssiDbm,
+                          char* saida, size_t capacidadeSaida);
