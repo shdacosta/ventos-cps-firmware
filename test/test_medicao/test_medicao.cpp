@@ -17,6 +17,33 @@ void test_periodo_para_velocidade_10kmh(void) {
     TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.78f, periodoParaVelocidadeMs(475000));
 }
 
+void test_periodo_para_velocidade_propaga_pulsos_por_volta(void) {
+    // PULSOS_POR_VOLTA entra no denominador de periodoParaVelocidadeMs:
+    // v = 1319 / (T_ms * PULSOS_POR_VOLTA). Dobrar PULSOS_POR_VOLTA
+    // (1.0 -> 2.0, cenario do dupont com 2 imas no reed switch) tem que
+    // resultar em METADE da velocidade calculada -- e essa relacao
+    // matematica que este teste trava, pra uma regressao futura na
+    // formula ser pega. Sem isso, nada prova que a troca da constante
+    // (README, quando a calibracao indicar 2 pulsos/volta) realmente
+    // funciona.
+    //
+    // Nao recompila com PULSOS_POR_VOLTA=2.0 trocado no header --
+    // exigiria um segundo ambiente de build dedicado so pra este
+    // teste. Em vez disso, confirma a premissa (constante atual e
+    // 1.0) e calcula o lado com 2.0 a mao, independente do header.
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, PULSOS_POR_VOLTA);
+
+    const uint32_t periodoMicros = 475000;  // 10 km/h a 1 pulso/volta (tabela hardware.md)
+
+    const float velocidadeUmPulsoPorVolta = periodoParaVelocidadeMs(periodoMicros);
+
+    const float periodoMs = periodoMicros / 1000.0f;
+    const float velocidadeDoisPulsosPorVolta = 1319.0f / (periodoMs * 2.0f);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, velocidadeUmPulsoPorVolta / 2.0f,
+                              velocidadeDoisPulsosPorVolta);
+}
+
 void test_gravar_com_espaco_sobra(void) {
     uint32_t buffer[3] = {0, 0, 0};
 
@@ -189,6 +216,7 @@ int main(void) {
     RUN_TEST(test_periodo_para_velocidade_partida);
     RUN_TEST(test_periodo_para_velocidade_maxima);
     RUN_TEST(test_periodo_para_velocidade_10kmh);
+    RUN_TEST(test_periodo_para_velocidade_propaga_pulsos_por_volta);
     RUN_TEST(test_gravar_com_espaco_sobra);
     RUN_TEST(test_gravar_na_ultima_posicao_livre);
     RUN_TEST(test_gravar_buffer_cheio_nao_escreve_fora);
