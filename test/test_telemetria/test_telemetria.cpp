@@ -125,6 +125,11 @@ void test_acao_4xx_descarta(void) {
     TEST_ASSERT_TRUE(AcaoAposResposta::Descartar == decidirAcaoAposResposta(422));
 }
 
+void test_acao_401_e_403_mantem(void) {
+    TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(401));
+    TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(403));
+}
+
 void test_acao_5xx_mantem(void) {
     TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(500));
     TEST_ASSERT_TRUE(AcaoAposResposta::Manter == decidirAcaoAposResposta(503));
@@ -209,6 +214,7 @@ int main(void) {
     RUN_TEST(test_buffer_vazio_copiar_e_remover_nao_fazem_nada);
     RUN_TEST(test_acao_2xx_remove);
     RUN_TEST(test_acao_4xx_descarta);
+    RUN_TEST(test_acao_401_e_403_mantem);
     RUN_TEST(test_acao_5xx_mantem);
     RUN_TEST(test_acao_erro_de_conexao_mantem);
     RUN_TEST(test_montar_payload_estrutura_correta);

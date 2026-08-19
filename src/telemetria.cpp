@@ -46,6 +46,12 @@ AcaoAposResposta decidirAcaoAposResposta(int codigo)
     if (codigo >= 200 && codigo < 300) {
         return AcaoAposResposta::Remover;
     }
+    if (codigo == 401 || codigo == 403) {
+        // Recuperavel -- token errado/rotacionado fica valido assim que
+        // for corrigido. Diferente de outros 4xx (ex: 422, payload
+        // invalido), onde reenviar o mesmo lote nunca ajudaria.
+        return AcaoAposResposta::Manter;
+    }
     if (codigo >= 400 && codigo < 500) {
         return AcaoAposResposta::Descartar;
     }
@@ -74,6 +80,16 @@ size_t montarPayloadJson(const AmostraTelemetria* amostras, uint32_t total,
         amostra["measured_at"] = amostras[i].measuredAt;
         amostra["avg_speed_ms"] = amostras[i].avgSpeedMs;
         amostra["gust_speed_ms"] = amostras[i].gustSpeedMs;
+    }
+
+    // ArduinoJson v7 nao falha ao ficar sem memoria no heap: para de
+    // adicionar elementos silenciosamente, marca overflowed()==true, e
+    // ainda assim serializeJson() produz um JSON valido -- so que com
+    // MENOS amostras do que foi pedido. Sem esta checagem, o chamador
+    // veria "sucesso" (bytes > 0) e removeria do buffer TODAS as
+    // amostras do lote original, nao so as que couberam de verdade.
+    if (doc.overflowed()) {
+        return 0;
     }
 
     const size_t escrito = serializeJson(doc, saida, capacidadeSaida);

@@ -53,11 +53,14 @@ void removerMaisAntigas(BufferTelemetria& buffer, uint32_t n);
 
 enum class AcaoAposResposta {
     Remover,    // 2xx -- lote aceito, remove do buffer
-    Descartar,  // 4xx -- lote invalido (payload malformado, token errado,
-                // lote grande demais) -- reenviar o mesmo lote so
-                // repetiria o mesmo erro, entao descarta e loga
-    Manter,     // erro de conexao/timeout, ou 5xx -- problema transitorio,
-                // mantem no buffer para a proxima tentativa
+    Descartar,  // 4xx (exceto 401/403) -- lote invalido (payload
+                // malformado, lote grande demais) -- reenviar o mesmo
+                // lote so repetiria o mesmo erro, entao descarta e loga
+    Manter,     // erro de conexao/timeout, 401/403 (token errado ou
+                // rotacionado -- recuperavel, o mesmo lote passa a ser
+                // aceito assim que o token for corrigido), ou 5xx --
+                // problema transitorio, mantem no buffer para a proxima
+                // tentativa
 };
 
 // `codigo` segue a convencao do HTTPClient do Arduino: negativo = erro
