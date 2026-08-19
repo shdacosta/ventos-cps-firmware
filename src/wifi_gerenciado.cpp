@@ -116,3 +116,24 @@ String horaAtualFormatada()
     strftime(texto, sizeof(texto), "%d/%m %H:%M:%S", &horario);
     return String(texto);
 }
+
+bool relogioSincronizado()
+{
+    struct tm horario;
+    return getLocalTime(&horario, 100);
+}
+
+time_t horaAtualUnix()
+{
+    if (!relogioSincronizado()) {
+        return 0;
+    }
+
+    // time() le o relogio interno do ESP32, que configTime() mantem em
+    // UTC de verdade -- SEM aplicar o deslocamento de fuso horario
+    // (esse deslocamento so entra na conversao para struct tm, feita
+    // por getLocalTime()/localtime(), nunca aqui). Por isso este valor
+    // ja e o epoch UTC certo, sem precisar de mktime() nem de conta de
+    // fuso horario.
+    return time(nullptr);
+}

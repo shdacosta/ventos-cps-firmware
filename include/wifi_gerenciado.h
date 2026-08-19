@@ -1,6 +1,7 @@
 #pragma once
 
 #include <WString.h>
+#include <ctime>
 
 // Conecta e mantem a conexao Wi-Fi viva, e o relogio sincronizado via
 // NTP, sem nunca bloquear o loop().
@@ -19,3 +20,14 @@ String wifiIp();
 // "sincronizando" enquanto o NTP ainda nao respondeu; senao a hora
 // local no formato dd/mm HH:MM:SS.
 String horaAtualFormatada();
+
+// Verdadeiro assim que o NTP sincronizou pela primeira vez desde o
+// boot -- mesmo mecanismo que horaAtualFormatada() ja usa (getLocalTime
+// com timeout curto, nunca bloqueia o loop() esperando).
+bool relogioSincronizado();
+
+// Epoch UTC em segundos. Devolve 0 se o relogio ainda nao sincronizou --
+// quem chama deve checar relogioSincronizado() antes de usar o valor
+// para algo que importa (nunca grave um measured_at baseado num retorno
+// de 0, o backend rejeitaria mesmo).
+time_t horaAtualUnix();
