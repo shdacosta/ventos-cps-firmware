@@ -2,8 +2,8 @@
 
 namespace {
 
-constexpr uint32_t JANELA_RAJADA_MICROS = 3'000'000;  // 3s
-constexpr uint32_t TIMEOUT_CALMARIA_MICROS = 10'000'000;  // 10s
+constexpr uint32_t JANELA_RAJADA_MICROS = 3000000;  // 3s
+constexpr uint32_t TIMEOUT_CALMARIA_MICROS = 10000000;  // 10s
 
 float calcularPicoDeRajada(const uint32_t* timestamps, uint32_t total)
 {
