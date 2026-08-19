@@ -19,6 +19,17 @@ volatile uint32_t ultimoPulsoAceito  = 0;
 volatile uint32_t penultimoPulsoAceito = 0;
 volatile bool      houvePulso        = false;
 
+// Escopo de arquivo, nao local: precisa sobreviver entre a ISR (que
+// pode rodar em qualquer core) e lerEZerarJanela() (chamada do
+// loop(), tipicamente no core do Arduino). Um portMUX_TYPE local a
+// lerEZerarJanela() so "funcionava" hoje porque a ISR do GPIO roda no
+// mesmo core do loop() -- a protecao real vinha do ISR desligar
+// interrupcoes locais, nao do spinlock em si, que seria recriado e
+// nunca contendido a cada chamada. Se algum dia uma task pinada rodar
+// em outro core (ex: envio HTTP assincrono na Fase 5), um mux local
+// deixaria de proteger coisa nenhuma.
+static portMUX_TYPE muxAnemometro = portMUX_INITIALIZER_UNLOCKED;
+
 // Snapshot nao-volatile do buffer, copiado atomicamente dentro de
 // lerEZerarJanela(). Evita race: ISR nao escreve aqui, so em bufferTimestamps.
 // Sem isso, caller (Task 8, calcularAmostra) poderia ler o array enquanto
@@ -29,9 +40,18 @@ void IRAM_ATTR isrPulso()
 {
     const uint32_t agora = micros();
 
+    // Secao critica protege todo o estado compartilhado com
+    // lerEZerarJanela() (penultimoPulsoAceito, ultimoPulsoAceito,
+    // houvePulso, totalTimestamps, descartadosBuffer, contagemTotal e
+    // a escrita no buffer). Variante _ISR: e a correta para uso
+    // DENTRO de uma ISR -- portENTER_CRITICAL normal nao e seguro
+    // aqui.
+    portENTER_CRITICAL_ISR(&muxAnemometro);
+
     // Debounce: descarta qualquer transicao dentro de 5ms do ultimo
     // pulso ACEITO (nao do ultimo evento bruto).
     if (houvePulso && (agora - ultimoPulsoAceito) < DEBOUNCE_MICROS) {
+        portEXIT_CRITICAL_ISR(&muxAnemometro);
         return;
     }
 
@@ -62,6 +82,8 @@ void IRAM_ATTR isrPulso()
     }
 
     contagemTotal++;
+
+    portEXIT_CRITICAL_ISR(&muxAnemometro);
 }
 
 }  // namespace
@@ -76,8 +98,7 @@ JanelaDePulsos lerEZerarJanela()
 {
     JanelaDePulsos janela = {};
 
-    portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-    portENTER_CRITICAL(&mux);
+    portENTER_CRITICAL(&muxAnemometro);
 
     janela.contagem = contagemTotal;
     janela.ultimoPeriodoMicros = houvePulso
@@ -99,7 +120,7 @@ JanelaDePulsos lerEZerarJanela()
     totalTimestamps = 0;
     descartadosBuffer = 0;
 
-    portEXIT_CRITICAL(&mux);
+    portEXIT_CRITICAL(&muxAnemometro);
 
     // timestamps aponta pro snapshot nao-volatile, que nao sera escrito
     // novamente. Snapshot e imutavel apos a seção crítica acima.

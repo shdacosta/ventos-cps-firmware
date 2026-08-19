@@ -62,6 +62,34 @@ na bancada.
 
 ---
 
+## 5. ISR do anemômetro não é totalmente cache-safe por padrão ⚠️ — reavaliar na Fase 5
+
+**Por quê:** `isrPulso()` (em `src/anemometro.cpp`) é `IRAM_ATTR`, mas o framework
+usado neste projeto tem `CONFIG_ARDUINO_ISR_IRAM` desligado por padrão — o que
+significa que, hoje, qualquer escrita em flash (o Wi-Fi da Fase 4 já faz isso
+via NVS ao salvar/reconectar) mascara a interrupção do GPIO enquanto a escrita
+dura. O efeito prático é perda **silenciosa** de pulsos — sem crash, sem erro,
+sem log — durante essas janelas.
+
+`gravarTimestampSeCouber()` (chamada de dentro da ISR) foi marcada `IRAM_ATTR`
+para o build do ESP32 (guardado por `#ifdef ARDUINO`, sem afetar o build
+nativo) justamente para deixar a cadeia de chamada da ISR pronta para o dia em
+que `CONFIG_ARDUINO_ISR_IRAM` for ligado — sem essa marcação, ligar a flag
+faria a ISR saltar para código em flash com o cache desligado, o que crasha.
+Mas isso resolve só metade do problema: mesmo com a cadeia toda em IRAM, a
+flag em si continua desligada por padrão, então a perda silenciosa de pulsos
+durante escrita de flash **continua acontecendo hoje**.
+
+**Quando reavaliar:** na Fase 5 (buffer offline), que vai escrever em flash com
+muito mais frequência do que o NVS do Wi-Fi hoje — o risco de perda de pulsos
+aumenta na mesma proporção. Nessa fase, decidir entre: ligar
+`CONFIG_ARDUINO_ISR_IRAM` (exige auditar que toda a cadeia de chamada da ISR
+está em IRAM, não só `gravarTimestampSeCouber`), ou aceitar a perda como
+conhecida e documentada, ou desenhar o buffer offline para escrever fora do
+caminho crítico da ISR.
+
+---
+
 ## Como usar este arquivo
 
 Risque o item conforme for confirmado, com a data e o resultado. Quando o

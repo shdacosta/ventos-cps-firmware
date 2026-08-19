@@ -52,8 +52,13 @@ float periodoParaVelocidadeMs(uint32_t periodoMicros)
     return 1319.0f / (periodoMs * PULSOS_POR_VOLTA);
 }
 
+#ifdef ARDUINO
+IRAM_ATTR bool gravarTimestampSeCouber(uint32_t* buffer, uint32_t capacidade,
+                                        uint32_t totalAtual, uint32_t novoTimestamp)
+#else
 bool gravarTimestampSeCouber(uint32_t* buffer, uint32_t capacidade,
                               uint32_t totalAtual, uint32_t novoTimestamp)
+#endif
 {
     if (totalAtual >= capacidade) {
         return false;

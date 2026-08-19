@@ -2,6 +2,10 @@
 
 #include <cstdint>
 
+#ifdef ARDUINO
+#include <esp_attr.h>
+#endif
+
 // Trocar aqui quando o dupont confirmar pulsos/volta
 // (specs/pendencias-hardware.md #1). Ver a nota de sinal em
 // periodoParaVelocidadeMs sobre por que multiplicar, nao dividir.
@@ -21,8 +25,21 @@ float periodoParaVelocidadeMs(uint32_t periodoMicros);
 // sendo chamada de dentro de uma ISR (anemometro.cpp). Quem chama
 // decide o que fazer quando devolve false (normalmente, incrementar
 // um contador de descarte).
+//
+// IRAM_ATTR no build do ESP32: esta funcao e chamada de dentro de
+// isrPulso() (IRAM_ATTR, anemometro.cpp). Sem IRAM_ATTR aqui tambem,
+// o codigo residiria em flash -- hoje isso so mascara a interrupcao
+// durante escritas de flash (perda silenciosa de pulsos); se
+// CONFIG_ARDUINO_ISR_IRAM for ligado no futuro, viraria crash (ISR
+// pulando pra flash com o cache desligado). Ver specs/pendencias-hardware.md.
+// No build nativo (sem ARDUINO) nao existe IRAM_ATTR nem faz sentido.
+#ifdef ARDUINO
+IRAM_ATTR bool gravarTimestampSeCouber(uint32_t* buffer, uint32_t capacidade,
+                                        uint32_t totalAtual, uint32_t novoTimestamp);
+#else
 bool gravarTimestampSeCouber(uint32_t* buffer, uint32_t capacidade,
                               uint32_t totalAtual, uint32_t novoTimestamp);
+#endif
 
 struct JanelaDePulsos {
     uint32_t contagem;                 // pulsos desde a ultima leitura -- SEMPRE
