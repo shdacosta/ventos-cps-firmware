@@ -47,6 +47,25 @@ void test_gravar_buffer_cheio_nao_escreve_fora(void) {
     TEST_ASSERT_EQUAL_UINT32(30, buffer[2]);
 }
 
+void test_amostra_janela_vazia_media_zero(void) {
+    JanelaDePulsos janela = {};
+    janela.contagem = 0;
+
+    Amostra amostra = calcularAmostra(janela);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, amostra.avgSpeedMs);
+}
+
+void test_amostra_media_por_contagem(void) {
+    // 21 pulsos em 10s = 2,1 Hz = 10 km/h (tabela de hardware.md)
+    JanelaDePulsos janela = {};
+    janela.contagem = 21;
+
+    Amostra amostra = calcularAmostra(janela);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.77f, amostra.avgSpeedMs);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_periodo_para_velocidade_partida);
@@ -55,5 +74,7 @@ int main(void) {
     RUN_TEST(test_gravar_com_espaco_sobra);
     RUN_TEST(test_gravar_na_ultima_posicao_livre);
     RUN_TEST(test_gravar_buffer_cheio_nao_escreve_fora);
+    RUN_TEST(test_amostra_janela_vazia_media_zero);
+    RUN_TEST(test_amostra_media_por_contagem);
     return UNITY_END();
 }

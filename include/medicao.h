@@ -23,3 +23,23 @@ float periodoParaVelocidadeMs(uint32_t periodoMicros);
 // um contador de descarte).
 bool gravarTimestampSeCouber(uint32_t* buffer, uint32_t capacidade,
                               uint32_t totalAtual, uint32_t novoTimestamp);
+
+struct JanelaDePulsos {
+    uint32_t contagem;                 // pulsos desde a ultima leitura -- SEMPRE
+                                        // exato, independe do buffer (alimenta a media)
+    uint32_t ultimoPeriodoMicros;       // periodo entre os 2 ultimos pulsos
+    uint32_t microsDesdeUltimoPulso;    // para o timeout de calmaria
+    const uint32_t* timestamps;         // timestamps (micros) dos pulsos da janela
+    uint32_t totalTimestamps;           // quantos cabem no buffer (cap 320)
+    uint32_t descartadosPorBuffer;      // pulsos alem do buffer -- so degrada a
+                                        // resolucao da rajada, nunca a media
+};
+
+struct Amostra {
+    float avgSpeedMs;
+    float gustSpeedMs;
+};
+
+// Unica fronteira entre o modulo de hardware e o de matematica: recebe a
+// janela crua, devolve o par pronto pro payload da Fase 5.
+Amostra calcularAmostra(const JanelaDePulsos& janela);

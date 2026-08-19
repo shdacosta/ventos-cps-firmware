@@ -20,3 +20,15 @@ bool gravarTimestampSeCouber(uint32_t* buffer, uint32_t capacidade,
     buffer[totalAtual] = novoTimestamp;
     return true;
 }
+
+Amostra calcularAmostra(const JanelaDePulsos& janela)
+{
+    Amostra amostra;
+
+    const float freqHz = janela.contagem / 10.0f;
+    amostra.avgSpeedMs = 1.319f * freqHz / PULSOS_POR_VOLTA;
+
+    amostra.gustSpeedMs = amostra.avgSpeedMs;  // placeholder ate a Task 5
+
+    return amostra;
+}
