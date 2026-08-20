@@ -34,7 +34,7 @@ Compila, grava e abre o monitor serial — o comando do dia a dia.
 | `make update` | Atualiza plataforma/libs dentro dos limites do `platformio.ini` |
 | `make check` | Análise estática (lint) |
 | `make test` | Testes do PlatformIO |
-| `make test ENV=native` | Roda os testes de `medicao.cpp` no Mac, sem placa |
+| `make test ENV=native` | Roda os testes de `medicao.cpp`, `telemetria.cpp` e `wifi_transicao.cpp` no Mac, sem placa (41 casos) |
 | `make flash ENV=calibracao` | Grava o modo de calibração (contagem de pulsos/volta) |
 | `make upload ENV=ota PORT=<ip>` | Grava por Wi-Fi, sem cabo USB (dispositivo já rodando na rede) |
 

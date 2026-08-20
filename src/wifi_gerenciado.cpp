@@ -5,24 +5,16 @@
 #include <time.h>
 
 #include "secrets.h"
+#include "wifi_transicao.h"
 
 namespace {
-
-// Nunca espera mais que isso entre tentativas de reconexao.
-constexpr uint32_t BACKOFF_INICIAL_MS = 500;
-constexpr uint32_t BACKOFF_MAXIMO_MS  = 30000;
 
 // Servidor NTP publico e fuso de Campinas (America/Sao_Paulo, UTC-3,
 // sem horario de verao desde 2019).
 constexpr char SERVIDOR_NTP[]  = "pool.ntp.org";
 constexpr long FUSO_SEGUNDOS   = -3 * 3600;
 
-uint32_t proximaTentativaEm = 0;
-uint32_t backoffAtualMs     = BACKOFF_INICIAL_MS;
-bool     jaConectouAlgumaVez = false;
-bool     ntpFoiPedido        = false;
-uint32_t contadorReconexoes      = 0;
-bool     caiuDesdeAUltimaConexao = false;
+EstadoWifi estado;
 
 void pedirSincronizacaoNtp()
 {
@@ -31,7 +23,7 @@ void pedirSincronizacaoNtp()
     // depois -- pode levar alguns segundos ate o primeiro pacote NTP
     // voltar.
     configTime(FUSO_SEGUNDOS, 0, SERVIDOR_NTP);
-    ntpFoiPedido = true;
+    estado.ntpFoiPedido = true;
     Serial.printf("[ntp] sincronizacao pedida (%s)\n", SERVIDOR_NTP);
 }
 
@@ -50,55 +42,27 @@ void iniciarWifi()
 
 void atualizarWifi()
 {
-    if (WiFi.status() == WL_CONNECTED) {
-        if (!jaConectouAlgumaVez) {
-            jaConectouAlgumaVez = true;
-            backoffAtualMs = BACKOFF_INICIAL_MS;
-            Serial.printf("[wifi] conectado. ip=%s rssi=%ddBm\n",
-                          WiFi.localIP().toString().c_str(), WiFi.RSSI());
-        } else if (caiuDesdeAUltimaConexao) {
-            // Reconexao de verdade (nao a conexao inicial do boot) --
-            // unico lugar onde o contador incrementa. Reseta o backoff
-            // tambem aqui -- antes disso so era resetado na conexao
-            // inicial, entao depois da primeira queda o backoff nunca
-            // voltava a descer do teto de 30s, mesmo com a rede
-            // estavel por horas.
-            contadorReconexoes++;
-            caiuDesdeAUltimaConexao = false;
-            backoffAtualMs = BACKOFF_INICIAL_MS;
-            Serial.printf("[wifi] reconectado (total=%lu). ip=%s rssi=%ddBm\n",
-                          (unsigned long) contadorReconexoes,
-                          WiFi.localIP().toString().c_str(), WiFi.RSSI());
-        }
-        if (!ntpFoiPedido) {
-            pedirSincronizacaoNtp();
-        }
-        return;
+    const bool conectadoAgora = WiFi.status() == WL_CONNECTED;
+    const AcaoWifi acao = avaliarTransicaoWifi(estado, conectadoAgora, millis());
+
+    if (acao.acabouDeConectarPelaPrimeiraVez) {
+        Serial.printf("[wifi] conectado. ip=%s rssi=%ddBm\n",
+                      WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    } else if (acao.acabouDeReconectar) {
+        Serial.printf("[wifi] reconectado (total=%lu). ip=%s rssi=%ddBm\n",
+                      (unsigned long) acao.contadorReconexoesAtual,
+                      WiFi.localIP().toString().c_str(), WiFi.RSSI());
     }
 
-    // Perdeu a conexao depois de ja ter conectado uma vez -- reseta o
-    // estado do NTP e marca que uma reconexao de verdade (nao o boot)
-    // esta pendente, para o contador incrementar quando reconectar.
-    if (jaConectouAlgumaVez) {
-        ntpFoiPedido = false;
-        caiuDesdeAUltimaConexao = true;
+    if (acao.precisaPedirNtp) {
+        pedirSincronizacaoNtp();
     }
 
-    const uint32_t agora = millis();
-    if (agora < proximaTentativaEm) {
-        return;  // ainda dentro da janela de espera do backoff
-    }
-
-    Serial.printf("[wifi] desconectado, tentando reconectar (proxima espera: %lus)\n",
-                  (unsigned long) (backoffAtualMs / 1000));
-    WiFi.disconnect();
-    WiFi.reconnect();
-
-    proximaTentativaEm = agora + backoffAtualMs;
-
-    backoffAtualMs *= 2;
-    if (backoffAtualMs > BACKOFF_MAXIMO_MS) {
-        backoffAtualMs = BACKOFF_MAXIMO_MS;
+    if (acao.deveTentarReconectarAgora) {
+        Serial.printf("[wifi] desconectado, tentando reconectar (proxima espera: %lus)\n",
+                      (unsigned long) (acao.esperaAtualMs / 1000));
+        WiFi.disconnect();
+        WiFi.reconnect();
     }
 }
 
@@ -156,5 +120,5 @@ time_t horaAtualUnix()
 
 uint32_t wifiContagemReconexoes()
 {
-    return contadorReconexoes;
+    return estado.contadorReconexoes;
 }

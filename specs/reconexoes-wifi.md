@@ -210,12 +210,21 @@ não `!==`, porque precisa cobrir `null` E `undefined` na mesma checagem.
 
 ### Nativos (`env:native`) — firmware
 
-`wifi_gerenciado.cpp` toca `WiFi.h` real — **sem teste nativo possível**,
-mesma categoria de `anemometro.cpp`/`envio.cpp`. Verificação por
-compilação + revisão de código + teste ao vivo (se o dispositivo estiver
-disponível: derrubar o Wi-Fi de propósito — ex. desligar o roteador
-alguns segundos — e confirmar no monitor serial que `contadorReconexoes`
-incrementa só na reconexão, não no boot).
+A máquina de estados da transição (quando incrementar o contador,
+resetar o backoff, pedir NTP de novo) foi extraída para
+`wifi_transicao.h`/`wifi_transicao.cpp` — funções puras sobre `EstadoWifi`
+e `AcaoWifi` (`avaliarTransicaoWifi()`), sem nenhuma dependência de
+`WiFi.h`/`Arduino.h`, e por isso **com teste nativo** (9 casos em
+`test/test_wifi_transicao/test_wifi_transicao.cpp`).
+
+O que continua **sem teste nativo possível** é só a casca fina que
+sobrou em `wifi_gerenciado.cpp`: a leitura de `WiFi.status()`, as
+chamadas de `WiFi.disconnect()`/`WiFi.reconnect()` e os `Serial.printf`
+de log — mesma categoria de `anemometro.cpp`/`envio.cpp`. Essa parte
+continua exigindo compilação + revisão de código + teste ao vivo (se o
+dispositivo estiver disponível: derrubar o Wi-Fi de propósito — ex.
+desligar o roteador alguns segundos — e confirmar no monitor serial que
+`contadorReconexoes` incrementa só na reconexão, não no boot).
 
 `montarPayloadJson` (native, já testável) ganha o campo novo na
 verificação de estrutura — o teste existente

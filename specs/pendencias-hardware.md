@@ -148,9 +148,11 @@ só com o dispositivo em bancada, monitorando crash.
 
 **O que é:** `wifiContagemReconexoes()` (`wifi_gerenciado.cpp`) incrementa
 quando `WiFi.status()` volta a `WL_CONNECTED` depois de ter saído desse
-estado ao menos uma vez (não conta a conexão inicial do boot). Lógica e
-testes cobertos por revisão de código — sem teste nativo possível, já que
-o módulo toca `WiFi.h` real (mesma categoria de `anemometro.cpp`).
+estado ao menos uma vez (não conta a conexão inicial do boot). A lógica
+da transição foi extraída para `wifi_transicao.{h,cpp}`
+(`avaliarTransicaoWifi()`) e tem cobertura nativa — ver nota abaixo; só a
+casca que toca `WiFi.h` real (`wifi_gerenciado.cpp`) continua sem teste
+nativo possível, mesma categoria de `anemometro.cpp`.
 
 **Por quê é uma hipótese, não um fato confirmado:** a definição de
 "reconexão de verdade" depende de `WiFi.status()` nunca "piscar" por um
@@ -174,6 +176,18 @@ de contagem isolado.
    incremento causado por piscar de sinal (sem queda real) passaria
    despercebido — é exatamente o cenário que tornaria o número enganoso
    para diagnóstico remoto, o propósito original do requisito.
+
+**Nota (extração da máquina de estados):** a lógica de decisão em si
+(quando incrementar o contador, resetar o backoff, tratar um "piscar"
+como reconexão) foi extraída para `wifi_transicao.{h,cpp}` e agora tem
+prova automatizada nativa, incluindo um teste dedicado pro cenário exato
+do "piscar" descrito acima
+(`test_piscar_de_status_conta_como_reconexao_comportamento_conhecido`,
+em `test/test_wifi_transicao/test_wifi_transicao.cpp`), que documenta
+esse comportamento como conhecido/aceito, não como bug. O que ainda
+falta — e mantém este item ❓ — é só a confirmação de que o rádio real
+da ESP32 se comporta como o modelo assume (não "pisca" sem queda real);
+a lógica que reage a esse comportamento, essa já está provada.
 
 ---
 
