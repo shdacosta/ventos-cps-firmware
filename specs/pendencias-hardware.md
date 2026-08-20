@@ -110,27 +110,80 @@ pedia — sem nenhum sensor conectado, só com o toolchain já instalado:
   `CONFIG_ARDUINO_ISR_IRAM` moveria `micros()` para IRAM automaticamente,
   junto com `isrPulso()`/`gravarTimestampSeCouber()` — não seria necessário
   nenhum patch manual nessa chamada especificamente.
-- ❓ **Hipótese ainda em aberto** (é a parte que realmente falta pra fechar
-  a auditoria): não verificado se o registro do handler em si —
-  `attachInterrupt()` (`esp32-hal-gpio.c`) e o serviço de ISR de GPIO do
-  ESP-IDF que ele usa por baixo (`gpio_install_isr_service`/
-  `gpio_isr_handler_add`) — também respeita esse mesmo mecanismo quando a
-  flag está ligada, ou se tem alguma parte do próprio dispatch de
-  interrupção do framework que ficaria em flash independente da flag. Isso
-  também é verificável por software (leitura do código-fonte do ESP-IDF já
-  instalado, igual ao que foi feito acima), só não foi feito ainda.
+**Lacuna fechada (2026-08-20), com um experimento real de build — sem hardware:**
 
-**Decisão registrada:** manter a Opção 2 (aceitar o risco, documentado) por
-ora — não ligar `CONFIG_ARDUINO_ISR_IRAM`. Motivo: a Fase 5 não piorou o
-risco (buffer ficou em RAM), a auditoria completa da cadeia ainda tem uma
-lacuna real (item ❓ acima), e ligar essa flag sem validar em hardware de
-verdade arrisca um crash silencioso bem pior que a perda de pulso que já
-existe hoje — não vale trocar um risco conhecido e pequeno por um risco
-maior e não testado, ainda mais com o dispositivo fora de bancada agora. Se
-algum dia quiserem revisitar: o próximo passo concreto (também sem
-hardware) é ler `esp32-hal-gpio.c`/`gpio.c` do ESP-IDF pra fechar a lacuna
-❓ acima; só depois disso faria sentido testar a flag ligada, e mesmo assim
-só com o dispositivo em bancada, monitorando crash.
+A pergunta que sobrou era: o registro do handler em si (`attachInterrupt()` →
+`gpio_install_isr_service()`/`gpio_isr_handler_add()`, do ESP-IDF) respeita o
+mesmo mecanismo condicional, ou tem alguma parte do dispatch de interrupção
+que fica em flash independente da flag? Ler só o código-fonte não bastava —
+`driver/gpio.c`/`esp_intr_alloc.c` do ESP-IDF são bibliotecas `.a`
+pré-compiladas neste pacote do PlatformIO, sem `.c` disponível pra ler. A
+resposta definitiva veio compilando o firmware real DUAS vezes (com e sem
+`-D CONFIG_ARDUINO_ISR_IRAM=1` em `build_flags`, revertido logo depois —
+nunca chegou a ser commitado) e comparando o mapa de símbolos das duas
+ELFs:
+
+- ✅ **Confirmado**, lendo `esp32-hal-gpio.c`: `attachInterrupt()` chama
+  `gpio_install_isr_service((int)ARDUINO_ISR_FLAG)` — o mesmo flag
+  condicional (`ESP_INTR_FLAG_IRAM` quando a config está ligada, `0` quando
+  não) é repassado pro ESP-IDF. E o dispatcher que o Arduino registra pra
+  cada pino, `__onPinInterrupt`, também é `static void ARDUINO_ISR_ATTR
+  __onPinInterrupt(...)` — mesmo mecanismo de `micros()`.
+- ✅ **Confirmado, compilando os dois builds**: com a flag DESLIGADA (estado
+  atual do projeto), `__onPinInterrupt` fica em `0x40172a60`, dentro de
+  `.flash.text` — fora da IRAM, exatamente como o mecanismo condicional
+  previa. Com a flag LIGADA, `__onPinInterrupt` migra pra `0x40089278`,
+  dentro de `.iram0.text` — sem precisar de nenhuma mudança de código deste
+  projeto além da flag em si.
+- ✅ **Confirmado, no mesmo experimento — achado que não estava previsto**:
+  o dispatcher de mais baixo nível do próprio ESP-IDF, `gpio_intr_service`
+  (chamado direto pela matriz de interrupção do chip) e `gpio_isr_loop`
+  (que ele usa por baixo), já estão dentro de `.iram0.text`
+  **independente da flag** — confirmado nos dois builds (`0x400814e0`/
+  `0x400814a0` com a flag desligada, ainda dentro de IRAM com ela ligada).
+  Ou seja: o ESP-IDF sempre mantém o próprio loop de despacho de
+  interrupção em IRAM; é só o handler REGISTRADO pelo Arduino
+  (`__onPinInterrupt`, e por baixo dele `micros()`) que fica de fora quando
+  a flag está desligada. Isso explica com precisão o mecanismo por trás do
+  "mascara a interrupção, sem crash" já documentado acima: o dispatcher do
+  ESP-IDF sempre roda (está em IRAM), e é ele mesmo quem decide, em tempo
+  de execução, pular o handler não-IRAM-safe durante uma janela de escrita
+  em flash — não é a interrupção inteira que trava ou o chip que crasha.
+- ✅ **Confirmado**: os dois builds compilaram e **linkaram** limpos (`pio
+  run -e esp32dev` com `SUCCESS` nos dois casos) — ligar a flag não estoura
+  o orçamento de IRAM deste projeto (uso subiu de `0x1536f` para `0x155af`
+  bytes, ~576 bytes a mais, folga ampla). A suíte nativa (`make test`, 41
+  casos) não é afetada por essa flag (env separado) e continuou passando
+  nos dois builds.
+
+Com isso, a cadeia inteira — do despacho bruto de interrupção do ESP-IDF até
+`isrPulso()`/`gravarTimestampSeCouber()`/`micros()` — está **provada estar
+100% em IRAM quando a flag é ligada**, sem nenhum patch de código adicional
+necessário. A auditoria que este item pedia está completa.
+
+**O que ainda falta, e por que agora é hardware de verdade:** a prova acima
+é de **posicionamento estático** (onde cada função cai na memória) — prova
+que o código É CAPAZ de rodar sem crashar com o cache de flash desligado.
+Não prova o **comportamento em tempo real**: se uma escrita de flash de
+verdade (NVS do Wi-Fi ao reconectar) e uma interrupção real do sensor
+colidirem no tempo, com a flag ligada, o pulso é mesmo contado corretamente
+(em vez de só "não travar")? Isso só se confirma com o dispositivo ligado,
+gerando pulsos reais, enquanto força uma reconexão de Wi-Fi de propósito —
+não dá pra simular no Mac.
+
+**Decisão registrada:** manter a Opção 2 (aceitar o risco, documentado) até
+o dispositivo estar em bancada — não ligar `CONFIG_ARDUINO_ISR_IRAM` no
+código commitado ainda. Motivo: mesmo com a auditoria estática completa e
+favorável, a mudança nunca rodou de verdade num chip real; um erro de
+timing não capturado pela análise estática significaria um dispositivo
+travando sozinho no alto da caixa d'água, sem ninguém por perto — pior que
+a perda silenciosa de pulso que já existe e é conhecida hoje. Quando o
+dupont chegar e o dispositivo estiver em bancada, o teste concreto (curto,
+bem definido, já não é mais "auditar a cadeia inteira"): ligar a flag,
+girar o rotor continuamente enquanto força reconexões de Wi-Fi repetidas
+(derrubar/subir o roteador), e confirmar por Serial que a contagem de
+pulsos bate com o esperado e que o dispositivo não trava. Só depois disso
+vale considerar comitar a flag ligada de vez.
 
 ---
 
