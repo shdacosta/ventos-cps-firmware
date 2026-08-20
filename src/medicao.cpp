@@ -68,11 +68,16 @@ bool gravarTimestampSeCouber(uint32_t* buffer, uint32_t capacidade,
     return true;
 }
 
-Amostra calcularAmostra(const JanelaDePulsos& janela)
+Amostra calcularAmostra(const JanelaDePulsos& janela, uint32_t duracaoJanelaMs)
 {
     Amostra amostra = {};
 
-    const float freqMediaHz = janela.contagem / 10.0f;
+    if (duracaoJanelaMs == 0) {
+        return amostra;  // media/rajada zero -- nunca deveria acontecer no
+                          // caminho real, mas evita divisao por zero
+    }
+
+    const float freqMediaHz = janela.contagem / (duracaoJanelaMs / 1000.0f);
     amostra.avgSpeedMs = 1.319f * freqMediaHz / PULSOS_POR_VOLTA;
 
     const float picoHz = calcularPicoDeRajada(janela.timestamps, janela.totalTimestamps);

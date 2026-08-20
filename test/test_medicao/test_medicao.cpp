@@ -78,7 +78,7 @@ void test_amostra_janela_vazia_media_zero(void) {
     JanelaDePulsos janela = {};
     janela.contagem = 0;
 
-    Amostra amostra = calcularAmostra(janela);
+    Amostra amostra = calcularAmostra(janela, 10000);
 
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, amostra.avgSpeedMs);
 }
@@ -88,9 +88,37 @@ void test_amostra_media_por_contagem(void) {
     JanelaDePulsos janela = {};
     janela.contagem = 21;
 
-    Amostra amostra = calcularAmostra(janela);
+    Amostra amostra = calcularAmostra(janela, 10000);
 
     TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.77f, amostra.avgSpeedMs);
+}
+
+void test_amostra_janela_mais_longa_que_10s_nao_infla_media(void) {
+    // Mesmo vento (10 km/h = 2,1 Hz), mas a janela levou 20s pra fechar
+    // (ex.: loop() ficou bloqueado num envio HTTP lento) -- o dobro de
+    // pulsos numa janela com o dobro da duracao. A media tem que dar a
+    // MESMA velocidade de test_amostra_media_por_contagem (2,77 m/s),
+    // nao o dobro -- essa e exatamente a corrupcao que o bug historico
+    // causava (dividir por 10 fixo mesmo com janela de 20s).
+    JanelaDePulsos janela = {};
+    janela.contagem = 42;
+
+    Amostra amostra = calcularAmostra(janela, 20000);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.77f, amostra.avgSpeedMs);
+}
+
+void test_amostra_duracao_zero_nao_divide_por_zero(void) {
+    // Nunca deveria acontecer no caminho real (o loop() so chama
+    // calcularAmostra depois de confirmar pelo menos 10000ms passados),
+    // mas a funcao e publica e testavel -- duracao zero nao pode gerar
+    // NaN/Inf, so deve devolver media zero.
+    JanelaDePulsos janela = {};
+    janela.contagem = 5;
+
+    Amostra amostra = calcularAmostra(janela, 0);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, amostra.avgSpeedMs);
 }
 
 void test_amostra_vento_constante_rajada_igual_media(void) {
@@ -105,7 +133,7 @@ void test_amostra_vento_constante_rajada_igual_media(void) {
     janela.timestamps = timestamps;
     janela.totalTimestamps = 10;
 
-    Amostra amostra = calcularAmostra(janela);
+    Amostra amostra = calcularAmostra(janela, 10000);
 
     // vento constante: a rajada (pico de qualquer janela de 3s) coincide
     // com a media geral
@@ -139,7 +167,7 @@ void test_amostra_rajada_no_meio_supera_media(void) {
     janela.timestamps = timestamps;
     janela.totalTimestamps = (uint32_t)i;
 
-    Amostra amostra = calcularAmostra(janela);
+    Amostra amostra = calcularAmostra(janela, 10000);
 
     TEST_ASSERT_TRUE(amostra.gustSpeedMs > amostra.avgSpeedMs);
 
@@ -172,7 +200,7 @@ void test_amostra_buffer_no_limite_nao_le_fora(void) {
     janela.totalTimestamps = 320;       // capado
     janela.descartadosPorBuffer = 30;   // 350 - 320
 
-    Amostra amostra = calcularAmostra(janela);
+    Amostra amostra = calcularAmostra(janela, 10000);
 
     // nao trava, nao le fora do array (o proprio teste rodar sem crash
     // ja e a prova), e a media usa CONTAGEM real, nao o buffer capado
@@ -222,6 +250,8 @@ int main(void) {
     RUN_TEST(test_gravar_buffer_cheio_nao_escreve_fora);
     RUN_TEST(test_amostra_janela_vazia_media_zero);
     RUN_TEST(test_amostra_media_por_contagem);
+    RUN_TEST(test_amostra_janela_mais_longa_que_10s_nao_infla_media);
+    RUN_TEST(test_amostra_duracao_zero_nao_divide_por_zero);
     RUN_TEST(test_amostra_vento_constante_rajada_igual_media);
     RUN_TEST(test_amostra_rajada_no_meio_supera_media);
     RUN_TEST(test_amostra_buffer_no_limite_nao_le_fora);

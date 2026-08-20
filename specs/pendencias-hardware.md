@@ -90,19 +90,13 @@ caminho crítico da ISR.
 
 ---
 
-## 6. Janela de medição assume 10s fixos — pode corromper avg/gust se um envio HTTP demorar mais que isso ⚠️ — reavaliar quando o sensor conectar
+## 6. Janela de medição assumia 10s fixos ✅ corrigido em código — falta só confirmar com vento real
 
-**Por quê:** `calcularAmostra()` (`medicao.cpp`) faz `freqHz = janela.contagem / 10.0f` — a divisão por 10 é fixa, assume que a janela sempre dura exatamente 10s. Isso era verdade até a Fase 5: o `loop()` nunca bloqueava por mais que isso. Agora `tentarEnviarLotes()` pode bloquear (POST HTTP com timeout de 8s, até `MAX_LOTES_POR_CICLO=3` lotes seguidos) — se um ciclo de envio demorar mais de 10s no total, a próxima janela de medição fecha "atrasada", com mais de 10s de pulsos acumulados, mas a fórmula continua dividindo por 10 — `avg_speed_ms` sai inflado (e `gust_speed_ms` segue junto, pelo clamp que impede rajada menor que a média).
+**O que era:** `calcularAmostra()` (`medicao.cpp`) fazia `freqHz = janela.contagem / 10.0f` — divisão por 10 fixa, assumindo que a janela sempre durava exatamente 10s. Isso era verdade até a Fase 5: o `loop()` nunca bloqueava por mais que isso. A partir da Fase 5, `tentarEnviarLotes()` pode bloquear (POST HTTP com timeout de 8s, até `MAX_LOTES_POR_CICLO=3` lotes seguidos) — se um ciclo de envio demorasse mais de 10s no total, a próxima janela fechava "atrasada", com mais de 10s de pulsos acumulados, mas a fórmula continuava dividindo por 10 — `avg_speed_ms` saía inflado (e `gust_speed_ms` seguia junto, pelo clamp que impede rajada menor que a média).
 
-**Por que ninguém viu ainda:** sem o anemômetro conectado, `contagem` é sempre 0, então toda janela dá `avg=0.00` independente de quanto tempo durou — o bug é matematicamente invisível até existir vento de verdade sendo contado.
+**Correção aplicada** (achado da revisão final da Fase 5): `calcularAmostra()` agora recebe `duracaoJanelaMs` (a duração real da janela, medida em `main.cpp` via `millis()` antes de zerar o timer) em vez de assumir `10.0f` fixo. A rajada não precisava de mudança — o algoritmo dela já opera sobre os timestamps brutos numa janela deslizante de 3s, sem assumir duração total nenhuma. Testado nativamente: `test_amostra_janela_mais_longa_que_10s_nao_infla_media` prova que uma janela de 20s com o dobro de pulsos dá a mesma velocidade média de uma janela normal de 10s (o cenário exato do bug), e `test_amostra_duracao_zero_nao_divide_por_zero` cobre o caso de borda defensivo.
 
-**Como resolver, passo a passo, quando o sensor estiver conectado e o firmware de telemetria já estiver em uso real:**
-
-1. Confirmar que o cenário é alcançável de fato: link de sinal fraco (RSSI baixo, já documentado como característico desta instalação) + backlog grande o suficiente para vários lotes seguidos no mesmo ciclo de 60s.
-2. Decidir entre duas correções (achado da revisão final da Fase 5, não implementado de propósito — precisa de desenho cuidadoso, não uma emenda apressada):
-   - **Mínima:** se `millis() - ultimaMedicao` vier muito maior que 10000 quando o `loop()` retomar depois de um envio lento, descartar a janela parcial (`lerEZerarJanela()` sem usar o resultado) e ressincronizar `ultimaMedicao` — perde uma amostra em vez de publicar uma errada, loga alto.
-   - **Correta:** passar o tempo decorrido real para `calcularAmostra()` em vez do `10.0f` fixo, calculando a frequência com o denominador certo.
-3. Cobrir com teste nativo (a lógica de `calcularAmostra()` já é testável em `env:native` — um teste com janela "mais longa que 10s" deveria bastar pra travar a correção escolhida).
+**O que ainda falta, quando o sensor estiver conectado de verdade:** confirmar com vento real que `avg_speed_ms`/`gust_speed_ms` continuam corretos mesmo quando um ciclo de envio demora mais que 10s (forçar isso na prática: sinal de Wi-Fi fraco, ou backend respondendo devagar de propósito, enquanto o rotor gira). A matemática já está provada nativamente; falta só a confirmação de integração com o sensor físico, que nenhum teste ao vivo cobriu ainda porque `contagem` sempre foi 0 até agora.
 
 ---
 

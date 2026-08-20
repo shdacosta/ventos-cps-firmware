@@ -132,11 +132,16 @@ void loop()
     // afetar a medicao.
     static uint32_t ultimaMedicao = 0;
     if (agora - ultimaMedicao >= 10000) {
+        // Duracao REAL da janela, medida antes de zerar o timer -- quase
+        // sempre 10000ms, mas pode ser mais se o loop() ficou bloqueado
+        // (ex.: envio HTTP lento). calcularAmostra usa isso em vez de
+        // assumir 10s fixos (specs/pendencias-hardware.md #6).
+        const uint32_t duracaoJanelaMs = agora - ultimaMedicao;
         ultimaMedicao = agora;
 
         JanelaDePulsos janela = lerEZerarJanela();
         const float instantanea = velocidadeInstantaneaMs(janela);
-        const Amostra amostra = calcularAmostra(janela);
+        const Amostra amostra = calcularAmostra(janela, duracaoJanelaMs);
 
         Serial.printf("[medicao] agora=%.2f avg=%.2f gust=%.2f m/s\n",
                       instantanea, amostra.avgSpeedMs, amostra.gustSpeedMs);

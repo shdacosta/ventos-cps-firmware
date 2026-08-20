@@ -118,7 +118,10 @@ struct Amostra {
 // Unica fronteira entre o modulo de hardware e o de matematica: recebe a
 // janela crua, devolve o par pronto pro payload. E esta funcao que os
 // testes nativos exercitam com timestamps sinteticos.
-Amostra calcularAmostra(const JanelaDePulsos& janela);
+//
+// ✏️ Atualizado na Fase 5: ganhou o parametro `duracaoJanelaMs` (ver nota
+// abaixo) — achado da revisao final da Fase 5, especs/pendencias-hardware.md #6.
+Amostra calcularAmostra(const JanelaDePulsos& janela, uint32_t duracaoJanelaMs);
 ```
 
 ### Velocidade média
@@ -128,9 +131,18 @@ período (um pulso), esta parte de uma frequência (contagem ÷ tempo). Cálculo
 próprio, mesma constante:
 
 ```
-freqHz = contagem / 10.0
+freqHz = contagem / (duracaoJanelaMs / 1000.0)
 avgSpeedMs = 1.319 * freqHz / PULSOS_POR_VOLTA
 ```
+
+✏️ **Atualizado na Fase 5:** a versão original desta spec (Fase 2+3) descrevia
+`freqHz = contagem / 10.0`, assumindo que a janela sempre dura exatamente 10s.
+Isso deixou de ser verdade quando a Fase 5 passou a poder bloquear o `loop()`
+durante um envio HTTP — uma janela "atrasada" acumula mais de 10s de pulsos, e
+dividir por 10 fixo inflava a velocidade reportada. `calcularAmostra` agora
+recebe a duração real da janela (medida em `main.cpp`, `agora - ultimaMedicao`
+antes de zerar o timer) em vez de assumir 10s. Detalhes e testes:
+`specs/pendencias-hardware.md #6`.
 
 (equivalente à fórmula de `hardware.md §2`, com o ajuste de `PULSOS_POR_VOLTA`
 aplicado do mesmo jeito que em `periodoParaVelocidadeMs` — mais pulsos por
@@ -227,6 +239,12 @@ Cobertura mínima de `medicao.cpp`:
   pelo descarte), e a função não trava nem lê fora do array
 - `PULSOS_POR_VOLTA = 2.0`: mesma tabela de período, valores pela metade —
   prova que a constante realmente propaga para o resultado
+- ✏️ **Acrescentado na Fase 5:** `calcularAmostra` com janela de 20s e o
+  dobro dos pulsos de uma janela normal de 10s: `avg` tem que dar a MESMA
+  velocidade (não o dobro) — prova que `duracaoJanelaMs` propaga para a
+  fórmula, em vez de assumir 10s fixos
+- ✏️ **Acrescentado na Fase 5:** `calcularAmostra` com `duracaoJanelaMs=0`:
+  `avg=0`, sem divisão por zero
 
 ### No hardware real (não coberto por este ciclo)
 

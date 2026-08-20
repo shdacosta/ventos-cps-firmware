@@ -59,7 +59,16 @@ struct Amostra {
 
 // Unica fronteira entre o modulo de hardware e o de matematica: recebe a
 // janela crua, devolve o par pronto pro payload da Fase 5.
-Amostra calcularAmostra(const JanelaDePulsos& janela);
+//
+// `duracaoJanelaMs` e a duracao REAL da janela (main.cpp mede via
+// millis() antes de zerar o timer) -- NAO assume 10000 fixo. A Fase 5
+// pode bloquear o loop() por mais que 10s durante um envio HTTP lento;
+// se a media dividisse por 10 fixo mesmo com uma janela mais longa, o
+// valor reportado sairia inflado (achado da revisao final da Fase 5,
+// ver specs/pendencias-hardware.md #6). A rajada NAO precisa desse
+// parametro -- o algoritmo dela ja opera sobre os timestamps brutos
+// numa janela deslizante de 3s, sem assumir duracao total nenhuma.
+Amostra calcularAmostra(const JanelaDePulsos& janela, uint32_t duracaoJanelaMs);
 
 // So para uso local (Serial), NAO vai no payload da Fase 5 -- o backend
 // so aceita avg_speed_ms/gust_speed_ms por janela de 10s, nao um valor
