@@ -62,7 +62,7 @@ na bancada.
 
 ---
 
-## 5. ISR do anemômetro não é totalmente cache-safe por padrão ⚠️ — reavaliar na Fase 5
+## 5. ISR do anemômetro não é totalmente cache-safe por padrão ⚠️ — reavaliado, risco aceito por ora
 
 **Por quê:** `isrPulso()` (em `src/anemometro.cpp`) é `IRAM_ATTR`, mas o framework
 usado neste projeto tem `CONFIG_ARDUINO_ISR_IRAM` desligado por padrão — o que
@@ -80,13 +80,57 @@ Mas isso resolve só metade do problema: mesmo com a cadeia toda em IRAM, a
 flag em si continua desligada por padrão, então a perda silenciosa de pulsos
 durante escrita de flash **continua acontecendo hoje**.
 
-**Quando reavaliar:** na Fase 5 (buffer offline), que vai escrever em flash com
-muito mais frequência do que o NVS do Wi-Fi hoje — o risco de perda de pulsos
-aumenta na mesma proporção. Nessa fase, decidir entre: ligar
-`CONFIG_ARDUINO_ISR_IRAM` (exige auditar que toda a cadeia de chamada da ISR
-está em IRAM, não só `gravarTimestampSeCouber`), ou aceitar a perda como
-conhecida e documentada, ou desenhar o buffer offline para escrever fora do
-caminho crítico da ISR.
+**Reavaliação feita na Fase 5 (2026-08-20), sem precisar de hardware:**
+
+Fase 5 (telemetria) chegou e **não** agravou o risco como este item temia —
+o buffer de telemetria ficou em RAM (`telemetria.md §9`), não em flash/NVS,
+então a frequência de escrita em flash continua sendo só o NVS do Wi-Fi ao
+reconectar, igual antes.
+
+Foi possível avançar a auditoria da cadeia de chamada da ISR que este item
+pedia — sem nenhum sensor conectado, só com o toolchain já instalado:
+
+- ✅ **Confirmado**, compilando o firmware real (`pio run -e esp32dev`) e
+  inspecionando o mapa de símbolos do ELF gerado (`xtensa-esp32-elf-nm`/
+  `readelf`): `isrPulso()` (`0x400813f4`) e `gravarTimestampSeCouber()`
+  (`0x4008906c`) caem dentro de `.iram0.text` (`0x40080404`–`0x40095773`),
+  como esperado — mas `micros()`, chamada logo na primeira linha de
+  `isrPulso()` (`src/anemometro.cpp:41`), está em `0x400dbb98`, dentro de
+  `.flash.text` (`0x400d0020` em diante). **Fora da IRAM, hoje.**
+- ✅ **Confirmado**, lendo o código-fonte do framework
+  (`cores/esp32/esp32-hal-misc.c` e `esp32-hal.h`): `micros()` é declarada
+  `unsigned long ARDUINO_ISR_ATTR micros()`, e `ARDUINO_ISR_ATTR` é definida
+  como `IRAM_ATTR` quando `CONFIG_ARDUINO_ISR_IRAM` está ligado, e como nada
+  (vazio) quando está desligado — exatamente o mesmo mecanismo condicional
+  que motivou marcar `gravarTimestampSeCouber()` como `IRAM_ATTR` neste
+  projeto. `micros()` estar em flash hoje não é acaso nem descuido: é
+  consequência direta e prevista da flag estar desligada.
+- 💡 **Recomendação/inferência** (não testada ao vivo): como `micros()` já
+  usa esse mesmo mecanismo condicional do framework, ligar
+  `CONFIG_ARDUINO_ISR_IRAM` moveria `micros()` para IRAM automaticamente,
+  junto com `isrPulso()`/`gravarTimestampSeCouber()` — não seria necessário
+  nenhum patch manual nessa chamada especificamente.
+- ❓ **Hipótese ainda em aberto** (é a parte que realmente falta pra fechar
+  a auditoria): não verificado se o registro do handler em si —
+  `attachInterrupt()` (`esp32-hal-gpio.c`) e o serviço de ISR de GPIO do
+  ESP-IDF que ele usa por baixo (`gpio_install_isr_service`/
+  `gpio_isr_handler_add`) — também respeita esse mesmo mecanismo quando a
+  flag está ligada, ou se tem alguma parte do próprio dispatch de
+  interrupção do framework que ficaria em flash independente da flag. Isso
+  também é verificável por software (leitura do código-fonte do ESP-IDF já
+  instalado, igual ao que foi feito acima), só não foi feito ainda.
+
+**Decisão registrada:** manter a Opção 2 (aceitar o risco, documentado) por
+ora — não ligar `CONFIG_ARDUINO_ISR_IRAM`. Motivo: a Fase 5 não piorou o
+risco (buffer ficou em RAM), a auditoria completa da cadeia ainda tem uma
+lacuna real (item ❓ acima), e ligar essa flag sem validar em hardware de
+verdade arrisca um crash silencioso bem pior que a perda de pulso que já
+existe hoje — não vale trocar um risco conhecido e pequeno por um risco
+maior e não testado, ainda mais com o dispositivo fora de bancada agora. Se
+algum dia quiserem revisitar: o próximo passo concreto (também sem
+hardware) é ler `esp32-hal-gpio.c`/`gpio.c` do ESP-IDF pra fechar a lacuna
+❓ acima; só depois disso faria sentido testar a flag ligada, e mesmo assim
+só com o dispositivo em bancada, monitorando crash.
 
 ---
 
