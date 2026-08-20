@@ -57,7 +57,7 @@ O que o firmware precisa respeitar desse contrato está resumido em
 | 2 | Sensor na bancada — pulsos, pulsos/volta, debounce | 🔴 bloqueada — falta conector |
 | 3 | Medição — período, instantânea, média, rajada | ⚪ |
 | 4 | Wi-Fi robusto — reconexão, NTP | 🔵 em andamento |
-| 5 | Telemetria — HTTP em lote, buffer offline, watchdog, OTA | ⚪ |
+| 5 | Telemetria — HTTP em lote, buffer offline, watchdog, OTA | 🔵 código completo, pendente de confirmação ao vivo |
 | 6 | Hardware definitivo — PC817, caixa hermética, instalação | ⚪ |
 
 As fases 7 (backend) e 8 (SPA) vivem no repositório `ventos-cps`. A 7 está concluída.

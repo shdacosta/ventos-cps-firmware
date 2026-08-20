@@ -95,7 +95,7 @@ Boas práticas aplicadas:
 - `WiFi.setSleep(false)` — estação ligada na tomada, latência importa mais que consumo
 - Credenciais fora do código versionado (`include/secrets.h`, no `.gitignore`; `secrets.h.example` versionado como template)
 - **NTP para timestamp confiável, resolvido e confirmado ao vivo**: o carimbo é do **ESP32**, não do servidor — decisão já tomada no contrato do backend (`measured_at`, ver `backend/README.md` no repo do servidor), por causa do buffer offline da Fase 5. `configTime()` dispara a sincronização assim que conecta; `getLocalTime()` com timeout curto (100 ms) evita bloquear o `loop()` enquanto ainda não sincronizou
-- Watchdog: reset automático se o loop principal travar — **ainda não implementado**, fica para a Fase 5 junto do buffer offline
+- Watchdog: reset automático se o loop principal travar — ✅ **implementado** (`src/watchdog.cpp`: `iniciarWatchdog()` no `setup()`, `esp_task_wdt_reset()` a cada volta do `loop()` e entre lotes de envio, timeout de 30 s — ver [telemetria.md §5](telemetria.md)), **mas o reset em si nunca foi visto acontecendo de verdade** — falta forçar o `loop()` a travar em bancada e confirmar o reinício (mesma verificação ao vivo pendente do restante da Fase 5, ver `telemetria.md §8`)
 
 ### ❓ Achado do teste ao vivo: sinal fraco
 
@@ -117,9 +117,9 @@ numa sessão só, em vez de duas verificações separadas.
 
 ## 4. Telemetria
 
-Transporte: MQTT ou HTTP — **a decidir na Fase 5**.
+Transporte: HTTP em lote — ✅ **decidido e implementado** (Fase 5; `src/telemetria.cpp` + integração em `src/envio.cpp`, que já usa `HTTPClient`/`POST` contra `INGEST_URL`). Design completo — buffer, payload, política de retry — em [telemetria.md](telemetria.md); a lógica pura tem prova nativa, o `HTTPClient` real contra o backend rodando ainda depende de verificação ao vivo (ver `telemetria.md §8`).
 
-Requisitos:
+Requisitos originais (satisfeitos pelo design de `telemetria.md`, mantidos aqui só como contexto histórico):
 
 - **Buffer offline.** Se o Wi-Fi cair, as leituras não podem ser perdidas. Dimensionar quantas amostras cabem na RAM/NVS e o que fazer ao encher.
 - Payload JSON com: velocidade instantânea, média do intervalo, rajada do intervalo, timestamp, contador de sequência
@@ -129,7 +129,7 @@ Requisitos:
 
 - **OTA** — atualizar firmware pelo Wi-Fi. Sem isso, cada correção exige subir na caixa d'água com um notebook.
 - **Watchdog** ativo
-- Métricas de saúde no payload: uptime, heap livre, RSSI, contagem de reconexões
+- Métricas de saúde no payload: uptime, heap livre, RSSI, contagem de reconexões — ✅ **implementadas**, as quatro. As três primeiras desde a Fase 5 (ver [telemetria.md §4](telemetria.md)); `wifi_reconnect_count` num ciclo posterior (ver [reconexoes-wifi.md](reconexoes-wifi.md)) — já em produção. ❓ A contagem de reconexões ainda é hipótese quanto à definição operacional exata: falta confirmar ao vivo que ela não incrementa em "piscadas" de sinal sem queda real (ver `pendencias-hardware.md` item 7)
 
 ---
 
