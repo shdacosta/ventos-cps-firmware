@@ -21,6 +21,8 @@ uint32_t proximaTentativaEm = 0;
 uint32_t backoffAtualMs     = BACKOFF_INICIAL_MS;
 bool     jaConectouAlgumaVez = false;
 bool     ntpFoiPedido        = false;
+uint32_t contadorReconexoes      = 0;
+bool     caiuDesdeAUltimaConexao = false;
 
 void pedirSincronizacaoNtp()
 {
@@ -51,8 +53,21 @@ void atualizarWifi()
     if (WiFi.status() == WL_CONNECTED) {
         if (!jaConectouAlgumaVez) {
             jaConectouAlgumaVez = true;
-            backoffAtualMs = BACKOFF_INICIAL_MS;  // reseta para a proxima queda
+            backoffAtualMs = BACKOFF_INICIAL_MS;
             Serial.printf("[wifi] conectado. ip=%s rssi=%ddBm\n",
+                          WiFi.localIP().toString().c_str(), WiFi.RSSI());
+        } else if (caiuDesdeAUltimaConexao) {
+            // Reconexao de verdade (nao a conexao inicial do boot) --
+            // unico lugar onde o contador incrementa. Reseta o backoff
+            // tambem aqui -- antes disso so era resetado na conexao
+            // inicial, entao depois da primeira queda o backoff nunca
+            // voltava a descer do teto de 30s, mesmo com a rede
+            // estavel por horas.
+            contadorReconexoes++;
+            caiuDesdeAUltimaConexao = false;
+            backoffAtualMs = BACKOFF_INICIAL_MS;
+            Serial.printf("[wifi] reconectado (total=%lu). ip=%s rssi=%ddBm\n",
+                          (unsigned long) contadorReconexoes,
                           WiFi.localIP().toString().c_str(), WiFi.RSSI());
         }
         if (!ntpFoiPedido) {
@@ -62,10 +77,11 @@ void atualizarWifi()
     }
 
     // Perdeu a conexao depois de ja ter conectado uma vez -- reseta o
-    // estado do NTP. Uma reconexao pode levar minutos, e o ESP32 nao
-    // tem RTC com bateria propria: sem Wi-Fi, o relogio so vai derivando.
+    // estado do NTP e marca que uma reconexao de verdade (nao o boot)
+    // esta pendente, para o contador incrementar quando reconectar.
     if (jaConectouAlgumaVez) {
         ntpFoiPedido = false;
+        caiuDesdeAUltimaConexao = true;
     }
 
     const uint32_t agora = millis();
@@ -136,4 +152,9 @@ time_t horaAtualUnix()
     // ja e o epoch UTC certo, sem precisar de mktime() nem de conta de
     // fuso horario.
     return time(nullptr);
+}
+
+uint32_t wifiContagemReconexoes()
+{
+    return contadorReconexoes;
 }

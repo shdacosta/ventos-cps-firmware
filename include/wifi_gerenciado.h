@@ -31,3 +31,8 @@ bool relogioSincronizado();
 // para algo que importa (nunca grave um measured_at baseado num retorno
 // de 0, o backend rejeitaria mesmo).
 time_t horaAtualUnix();
+
+// Reconexoes de verdade desde o boot -- NAO conta a conexao inicial.
+// Reseta a cada reinicio (mesmo padrao de uptime_seconds, que tambem
+// zera no boot -- os dois sao "desde quando o dispositivo esta de pe").
+uint32_t wifiContagemReconexoes();
