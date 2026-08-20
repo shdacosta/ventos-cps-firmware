@@ -196,10 +196,13 @@ e na tupla de parâmetros — mecânico, mesmo padrão das colunas existentes.
 
 Um `<span>` novo no rodapé, mesmo padrão dos existentes
 (`{{ saude.wifi_reconnect_count }}`) — sem transformação, o campo já
-chega pronto do backend. Não precisa de computed nem de lógica condicional
-extra (o valor pode ser `null` em dado histórico pré-migration, mas Vue
-já renderiza `null` como vazio, comportamento aceitável — mesmo tratamento
-implícito que os outros campos já têm hoje).
+chega pronto do backend. Precisa de um guard `v-if="saude.wifi_reconnect_count != null"`
+no span inteiro — decisão refinada no plano de implementação, diferente do
+que esta spec previa originalmente: sem o guard, dado histórico
+pré-migration (`NULL`) ou payload de firmware mais antigo (campo ausente)
+renderizaria " reconexões" sem número, já que Vue só esvazia o conteúdo
+interpolado, não omite o `<span>` sozinho. A comparação usa `!=` (frouxa),
+não `!==`, porque precisa cobrir `null` E `undefined` na mesma checagem.
 
 ---
 

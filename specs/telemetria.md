@@ -113,7 +113,7 @@ AcaoAposResposta decidirAcaoAposResposta(int codigo);
 size_t montarPayloadJson(const AmostraTelemetria* amostras, uint32_t total,
                           const char* deviceId, const char* firmwareVersion,
                           uint32_t uptimeSeconds, uint32_t freeHeapBytes,
-                          int wifiRssiDbm,
+                          int wifiRssiDbm, uint32_t wifiReconnectCount,
                           char* saida, size_t capacidadeSaida);
 ```
 
@@ -143,7 +143,8 @@ aninhada) tem prova automatizada, sem precisar de placa nem de rede.
   "health": {
     "uptime_seconds": 86400,
     "free_heap_bytes": 351476,
-    "wifi_rssi_dbm": -62
+    "wifi_rssi_dbm": -62,
+    "wifi_reconnect_count": 3
   },
   "samples": [
     { "measured_at": 1755432000, "avg_speed_ms": 3.21, "gust_speed_ms": 5.84 }
@@ -167,7 +168,8 @@ loteAtual = 0
 enquanto quantidade(buffer) > 0 E loteAtual < MAX_LOTES_POR_CICLO:
     n = copiarProximoLote(buffer, saida, MAX_AMOSTRAS_POR_LOTE)
     payload = montarPayloadJson(saida, n, DEVICE_ID, FIRMWARE_VERSION,
-                                 uptime, heapLivre, wifiRssiDbm())
+                                 uptime, heapLivre, wifiRssiDbm(),
+                                 wifiContagemReconexoes())
     codigo = HTTPClient POST payload (timeout 8s)
     esp_task_wdt_reset()   // alimenta o watchdog entre lotes -- um
                             // esvaziamento de varios lotes nao pode
