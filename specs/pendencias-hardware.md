@@ -100,6 +100,39 @@ caminho crítico da ISR.
 
 ---
 
+## 7. Contagem de reconexões de Wi-Fi ❓ — definição operacional depende de confirmação ao vivo
+
+**O que é:** `wifiContagemReconexoes()` (`wifi_gerenciado.cpp`) incrementa
+quando `WiFi.status()` volta a `WL_CONNECTED` depois de ter saído desse
+estado ao menos uma vez (não conta a conexão inicial do boot). Lógica e
+testes cobertos por revisão de código — sem teste nativo possível, já que
+o módulo toca `WiFi.h` real (mesma categoria de `anemometro.cpp`).
+
+**Por quê é uma hipótese, não um fato confirmado:** a definição de
+"reconexão de verdade" depende de `WiFi.status()` nunca "piscar" por um
+único tick de `loop()` sem ter havido queda real de sinal — algo que só
+dá pra confirmar com rádio de verdade, não por revisão estática. Achado
+mais específico da revisão final: um "piscar" desse tipo não só seria
+**contado errado** como reconexão — ele **dispara de fato** a tentativa
+de reconexão que acaba sendo contada (`proximaTentativaEm` já expirado
+no momento do piscar), então o efeito é auto-alimentado, não só um erro
+de contagem isolado.
+
+**Como confirmar, quando o dispositivo estiver disponível:**
+
+1. **Caso positivo:** derrubar o Wi-Fi de propósito (desligar o roteador
+   alguns segundos) e confirmar no monitor serial que `contadorReconexoes`
+   incrementa exatamente uma vez por queda, mesmo que várias tentativas de
+   reconexão falhem antes de a rede voltar.
+2. **Caso negativo — não pular este passo:** deixar o dispositivo com Wi-Fi
+   estável por um período longo (algumas horas, não só minutos) e confirmar
+   que o contador **não sobe** nesse intervalo. Sem esse segundo teste, um
+   incremento causado por piscar de sinal (sem queda real) passaria
+   despercebido — é exatamente o cenário que tornaria o número enganoso
+   para diagnóstico remoto, o propósito original do requisito.
+
+---
+
 ## Como usar este arquivo
 
 Risque o item conforme for confirmado, com a data e o resultado. Quando o
