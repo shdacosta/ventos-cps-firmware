@@ -10,7 +10,19 @@
 #   make flash PORT=/dev/cu.usbserial-0001
 #   make build ENV=esp32dev
 
-ENV  ?= esp32dev
+# Default de ENV depende do alvo: build/flash/etc. querem a placa de
+# verdade (esp32dev); test quer native. esp32dev nunca e a escolha certa
+# para test -- platformio.ini marca test_ignore = * nesse ambiente de
+# proposito (test/test_medicao define seu proprio main(), que colidiria
+# com o setup()/loop() do Arduino ao linkar). Sem este ajuste, "make test"
+# sem argumento coleta 0 casos contra esp32dev e sai com exit 0 -- um
+# "sucesso" que nao testou nada. ENV=x continua funcionando para qualquer
+# alvo, isto so muda o valor assumido quando ninguem passa nada.
+ifeq ($(MAKECMDGOALS),test)
+ENV ?= native
+else
+ENV ?= esp32dev
+endif
 PORT ?=
 
 # O instalador do PlatformIO poe o binario em ~/.platformio/penv/bin,
@@ -72,5 +84,5 @@ update: ## Atualiza plataforma e bibliotecas dentro dos limites do platformio.in
 check: ## Analise estatica (lint do PlatformIO)
 	$(PIO) check -e $(ENV)
 
-test: ## Roda os testes do PlatformIO (pasta test/)
+test: ## Roda os testes nativos (pasta test/, sem placa -- make test ENV=x pra outro ambiente)
 	$(PIO) test -e $(ENV) $(UPLOAD_PORT_FLAG)
