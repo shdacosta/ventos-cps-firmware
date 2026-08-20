@@ -83,5 +83,5 @@ constexpr size_t CAPACIDADE_PAYLOAD_JSON = 49152;
 size_t montarPayloadJson(const AmostraTelemetria* amostras, uint32_t total,
                           const char* deviceId, const char* firmwareVersion,
                           uint32_t uptimeSeconds, uint32_t freeHeapBytes,
-                          int wifiRssiDbm,
+                          int wifiRssiDbm, uint32_t wifiReconnectCount,
                           char* saida, size_t capacidadeSaida);

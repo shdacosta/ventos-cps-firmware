@@ -150,7 +150,7 @@ void test_montar_payload_estrutura_correta(void) {
 
     char saida[512];
     size_t escrito = montarPayloadJson(amostras, 2, "anemometro-01", "1.0.0",
-                                        86400, 351476, -62, saida, sizeof(saida));
+                                        86400, 351476, -62, 3, saida, sizeof(saida));
 
     TEST_ASSERT_TRUE(escrito > 0);
 
@@ -163,6 +163,7 @@ void test_montar_payload_estrutura_correta(void) {
     TEST_ASSERT_EQUAL_UINT32(86400, doc["health"]["uptime_seconds"]);
     TEST_ASSERT_EQUAL_UINT32(351476, doc["health"]["free_heap_bytes"]);
     TEST_ASSERT_EQUAL_INT(-62, doc["health"]["wifi_rssi_dbm"]);
+    TEST_ASSERT_EQUAL_UINT32(3, doc["health"]["wifi_reconnect_count"]);
 
     TEST_ASSERT_EQUAL_UINT32(2, doc["samples"].size());
     TEST_ASSERT_EQUAL_UINT32(1755432000, doc["samples"][0]["measured_at"]);
@@ -176,7 +177,7 @@ void test_montar_payload_buffer_pequeno_demais_devolve_zero(void) {
 
     char saidaMinuscula[5];  // com certeza pequeno demais
     size_t escrito = montarPayloadJson(amostras, 1, "anemometro-01", "1.0.0",
-                                        100, 200000, -50, saidaMinuscula, sizeof(saidaMinuscula));
+                                        100, 200000, -50, 0, saidaMinuscula, sizeof(saidaMinuscula));
 
     TEST_ASSERT_EQUAL_UINT32(0, escrito);
 }
@@ -196,7 +197,7 @@ void test_montar_payload_500_amostras_pior_caso_cabe_no_buffer(void) {
     static char saida[CAPACIDADE_PAYLOAD_JSON];
     size_t escrito = montarPayloadJson(amostras, MAX_AMOSTRAS_POR_LOTE,
                                         "anemometro-01", "1.0.0",
-                                        999999999, 999999999, -100,
+                                        999999999, 999999999, -100, 4294967295u,
                                         saida, sizeof(saida));
 
     TEST_ASSERT_TRUE(escrito > 0);

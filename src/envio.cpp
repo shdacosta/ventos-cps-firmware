@@ -69,6 +69,7 @@ void tentarEnviarLotes()
         const size_t escrito = montarPayloadJson(
             loteSaida, n, DEVICE_ID, FIRMWARE_VERSION,
             (uint32_t) (millis() / 1000), ESP.getFreeHeap(), wifiRssiDbm(),
+            wifiContagemReconexoes(),
             payloadJson, CAPACIDADE_PAYLOAD_JSON);
 
         if (escrito == 0) {

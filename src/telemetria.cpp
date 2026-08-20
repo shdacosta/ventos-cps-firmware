@@ -61,7 +61,7 @@ AcaoAposResposta decidirAcaoAposResposta(int codigo)
 size_t montarPayloadJson(const AmostraTelemetria* amostras, uint32_t total,
                           const char* deviceId, const char* firmwareVersion,
                           uint32_t uptimeSeconds, uint32_t freeHeapBytes,
-                          int wifiRssiDbm,
+                          int wifiRssiDbm, uint32_t wifiReconnectCount,
                           char* saida, size_t capacidadeSaida)
 {
     JsonDocument doc;
@@ -73,6 +73,7 @@ size_t montarPayloadJson(const AmostraTelemetria* amostras, uint32_t total,
     health["uptime_seconds"] = uptimeSeconds;
     health["free_heap_bytes"] = freeHeapBytes;
     health["wifi_rssi_dbm"] = wifiRssiDbm;
+    health["wifi_reconnect_count"] = wifiReconnectCount;
 
     JsonArray samples = doc["samples"].to<JsonArray>();
     for (uint32_t i = 0; i < total; i++) {
